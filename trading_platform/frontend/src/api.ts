@@ -507,6 +507,7 @@ export async function submitManualOrder(orderData: {
   price: number;
   stop_loss?: number;
   take_profit?: number;
+  execution_mode?: 'PAPER' | 'LIVE';
 }): Promise<any> {
   const res = await fetch(`${API_BASE}/manual/order`, {
     method: 'POST',
@@ -719,13 +720,46 @@ export async function fetchVaultKeys(): Promise<BrokerKeyVaultItem[]> {
   return res.json();
 }
 
-export async function saveVaultKey(data: { broker_name: string; api_key: string; api_secret: string }): Promise<any> {
+export interface BrokerKeyPayload {
+  broker_name: string;
+  api_key: string;
+  api_secret?: string;
+  client_code?: string;
+  pin?: string;
+  totp_secret?: string;
+  account_id?: string;
+  environment?: string;
+  extra_token?: string;
+}
+
+export async function saveVaultKey(data: BrokerKeyPayload): Promise<any> {
   const res = await fetch(`${API_BASE}/auth/vault/keys`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to save API key in vault');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to save broker credentials' }));
+    throw new Error(err.detail || 'Failed to save broker credentials');
+  }
+  return res.json();
+}
+
+export async function verifyBrokerConnection(payload: {
+  broker_name: string;
+  api_key?: string;
+  api_secret?: string;
+  client_code?: string;
+  pin?: string;
+  totp_secret?: string;
+  account_id?: string;
+  environment?: string;
+}): Promise<any> {
+  const res = await fetch(`${API_BASE}/brokers/verify`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
   return res.json();
 }
 

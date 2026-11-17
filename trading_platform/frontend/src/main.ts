@@ -42,6 +42,7 @@ import {
   fetchAuditLogs,
   subscribeTelemetry,
   subscribeNeonRealtime,
+  setAuthToken,
 } from './api';
 
 let lastRenderedView: MainViewTab | null = null;
@@ -159,6 +160,17 @@ function renderApp() {
 }
 
 async function bootstrap() {
+  // Capture Google OAuth callback query parameters from redirect
+  const urlParams = new URLSearchParams(window.location.search);
+  const oauthToken = urlParams.get('auth_token');
+  const oauthEmail = urlParams.get('email');
+  const oauthName = urlParams.get('name');
+
+  if (oauthToken) {
+    setAuthToken(oauthToken);
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
   renderApp();
 
   // Subscribe to reactive state store
@@ -217,7 +229,18 @@ async function bootstrap() {
     store.ipos = ipos;
     store.advisorySignals = advisory;
     store.thematicBaskets = baskets;
-    if (user) store.currentUser = user;
+    if (user) {
+      store.currentUser = user;
+    } else if (oauthToken && (oauthEmail || oauthName)) {
+      store.currentUser = {
+        user_id: 'USR-OAUTH',
+        username: oauthName || (oauthEmail ? oauthEmail.split('@')[0] : 'Trader'),
+        email: oauthEmail || 'trader@institutional.com',
+        role: 'ADMIN',
+        investment_mode: 'AUTONOMOUS_TRADING',
+        totp_enabled: false,
+      };
+    }
     store.vaultKeys = vaultKeys;
     store.auditLogs = auditLogs;
 

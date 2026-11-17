@@ -24,6 +24,7 @@ import { PriceChartEngine, EquityCurveChartEngine } from './chart';
 let priceChart: PriceChartEngine | null = null;
 let equityChart: EquityCurveChartEngine | null = null;
 export let activeMTFReport: MTFSetupReport | null = null;
+export let activeExecutionMode: 'PAPER' | 'LIVE' = 'PAPER';
 export let onOpenCalculatorCallback: (() => void) | null = null;
 export let onOpenCopilotCallback: (() => void) | null = null;
 export let onOpenNewsCallback: (() => void) | null = null;
@@ -346,6 +347,18 @@ export function renderFloorPanel(): string {
 
             <div class="panel-card-body">
               <form id="order-ticket-form" class="quick-order-form">
+                <div class="ticket-execution-mode-toggle" style="display:flex; gap:6px; margin-bottom:10px;">
+                  <button type="button" id="btn-mode-paper" class="btn-toggle ${activeExecutionMode === 'PAPER' ? 'active' : ''}" style="flex:1; padding:4px 8px; font-size:10px; font-weight:700;">
+                    📝 PAPER SIM
+                  </button>
+                  <button type="button" id="btn-mode-live" class="btn-toggle ${activeExecutionMode === 'LIVE' ? 'active' : ''}" style="flex:1; padding:4px 8px; font-size:10px; font-weight:700; ${activeExecutionMode === 'LIVE' ? 'color:var(--color-amber); border-color:var(--color-amber);' : ''}">
+                    ⚡ LIVE BROKER
+                  </button>
+                </div>
+                <div id="ticket-mode-hint" style="font-size:9px; color:${activeExecutionMode === 'LIVE' ? 'var(--color-amber)' : 'var(--text-dim)'}; margin-bottom:8px; font-family:var(--font-mono);">
+                  ${activeExecutionMode === 'LIVE' ? '● LIVE: Routes to decrypted active broker in Neon Vault' : '● SIMULATION: Risk-governed virtual execution'}
+                </div>
+
                 <div class="ticket-input-group">
                   <div class="ticket-field">
                     <label class="field-label">SYMBOL</label>
@@ -557,6 +570,46 @@ function setupEventListeners(): void {
     onOpenNewsCallback?.();
   });
 
+  // Execution Mode Toggle (Paper Simulation vs Live Broker)
+  const btnPaper = document.getElementById('btn-mode-paper');
+  const btnLive = document.getElementById('btn-mode-live');
+  const modeHint = document.getElementById('ticket-mode-hint');
+
+  const updateModeToggleUI = () => {
+    if (activeExecutionMode === 'PAPER') {
+      btnPaper?.classList.add('active');
+      btnLive?.classList.remove('active');
+      if (btnLive) {
+        btnLive.style.color = '';
+        btnLive.style.borderColor = '';
+      }
+      if (modeHint) {
+        modeHint.style.color = 'var(--text-dim)';
+        modeHint.innerText = '● SIMULATION: Risk-governed virtual execution';
+      }
+    } else {
+      btnLive?.classList.add('active');
+      btnPaper?.classList.remove('active');
+      if (btnLive) {
+        btnLive.style.color = 'var(--color-amber)';
+        btnLive.style.borderColor = 'var(--color-amber)';
+      }
+      if (modeHint) {
+        modeHint.style.color = 'var(--color-amber)';
+        modeHint.innerText = '● LIVE: Routes to decrypted active broker in Neon Vault';
+      }
+    }
+  };
+
+  btnPaper?.addEventListener('click', () => {
+    activeExecutionMode = 'PAPER';
+    updateModeToggleUI();
+  });
+  btnLive?.addEventListener('click', () => {
+    activeExecutionMode = 'LIVE';
+    updateModeToggleUI();
+  });
+
   // Manual Order Buttons
   document.getElementById('btn-ticket-buy')?.addEventListener('click', () => handleManualOrderSubmit('BUY'));
   document.getElementById('btn-ticket-sell')?.addEventListener('click', () => handleManualOrderSubmit('SELL'));
@@ -643,10 +696,15 @@ async function handleManualOrderSubmit(side: 'BUY' | 'SELL'): Promise<void> {
       quantity,
       price,
       stop_loss: stopLoss,
+      execution_mode: activeExecutionMode,
     });
-    alert(`Order executed successfully! ID: ${res.order?.order_id}`);
+    if (activeExecutionMode === 'LIVE' && res.live_execution) {
+      alert(`⚡ Live order routed to ${res.live_execution.broker}!\nStatus: ${res.live_execution.status}\nBroker Order ID: ${res.live_execution.broker_order_id || 'N/A'}`);
+    } else {
+      alert(`Order executed successfully! ID: ${res.order?.order_id || 'N/A'}`);
+    }
   } catch (err: any) {
-    alert(`Risk Governor Rejected Order: ${err.message}`);
+    alert(`Order Rejected: ${err.message}`);
   }
 }
 

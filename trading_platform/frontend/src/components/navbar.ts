@@ -97,10 +97,10 @@ export function renderNavbar(): string {
         </button>
 
         <!-- User Profile Badge -->
-        <button class="nav-user-chip" id="btn-nav-user" title="Account & Security Settings">
-          <span class="user-avatar-circle">AD</span>
-          <span class="user-name">${u?.username || 'admin'}</span>
-          <span class="user-role-badge">${u?.role || 'ADMIN'}</span>
+        <button class="nav-user-chip" id="btn-nav-user" title="${u?.email || 'Account & Security Settings'}">
+          <span class="user-avatar-circle" style="${u?.email?.includes('@gmail.com') ? 'background:#EA4335;' : ''}">${(u?.username || 'AD').substring(0, 2).toUpperCase()}</span>
+          <span class="user-name" style="max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${u?.username || 'admin'}</span>
+          <span class="user-role-badge" style="font-size:9px;">${u?.email ? u.email : (u?.role || 'ADMIN')}</span>
         </button>
       </div>
     </header>

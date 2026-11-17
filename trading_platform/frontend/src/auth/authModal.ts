@@ -6,11 +6,11 @@ import { store } from '../state';
 import {
   loginUser,
   registerUser,
-  oauthSocialLogin,
   switchInvestmentMode,
   saveVaultKey,
   fetchVaultKeys,
   fetchAuditLogs,
+  verifyBrokerConnection,
 } from '../api';
 
 export function renderSecurityPanel(): string {
@@ -76,7 +76,7 @@ export function renderSecurityPanel(): string {
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <div>
             <h3 style="font-size:13px; font-weight:700; text-transform:uppercase;">Encrypted Broker Credentials Vault</h3>
-            <span style="font-size:10px; color:var(--text-dim)">API Keys and Secrets stored with hardware-grade symmetric encryption. Never exposed in plaintext.</span>
+            <span style="font-size:10px; color:var(--text-dim)">API Keys, TOTP secrets, and Access Tokens stored with AES-128 Fernet encryption in Neon PostgreSQL.</span>
           </div>
           <button id="btn-add-vault-key" class="btn-action-buy" style="font-size:11px; padding:4px 10px;">
             + ADD BROKER KEY
@@ -146,34 +146,38 @@ export function renderSecurityPanel(): string {
 
       <!-- Add Key Modal -->
       <div id="add-key-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width:480px;">
+        <div class="modal-content" style="max-width:500px;">
           <div class="modal-header">
-            <h3>Vault Broker API Key</h3>
+            <h3>🔐 Vault Broker API Credentials</h3>
             <button class="modal-close-btn" id="btn-close-key-modal">✕</button>
           </div>
           <form id="vault-key-form" style="padding:16px;">
-            <div style="margin-bottom:10px;">
-              <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px;">Broker Platform</label>
+            <div style="margin-bottom:12px;">
+              <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px; font-weight:600;">BROKER PLATFORM</label>
               <select id="input-broker-name" class="ticket-input" style="width:100%;">
-                <option value="Zerodha Kite Connect">Zerodha Kite Connect (NSE/BSE)</option>
-                <option value="Angel One SmartAPI">Angel One SmartAPI (NSE/BSE/FNO)</option>
-                <option value="Upstox Pro API">Upstox Pro API</option>
-                <option value="Dhan HQ">Dhan HQ Express</option>
-                <option value="OANDA v20 Forex">OANDA v20 (Global FX)</option>
-                <option value="MetaTrader 5 Bridge">MetaTrader 5 (MT5)</option>
+                <option value="Zerodha Kite Connect">Zerodha Kite Connect (NSE / BSE)</option>
+                <option value="Groww Trade API">Groww Trade API (NSE / BSE)</option>
+                <option value="Angel One SmartAPI">Angel One SmartAPI (NSE / BSE / F&amp;O)</option>
+                <option value="OANDA REST v20">OANDA REST v20 (Global Forex)</option>
+                <option value="MetaTrader (MT4/MT5)">MetaTrader 4 / MT5 via MetaApi</option>
               </select>
             </div>
-            <div style="margin-bottom:10px;">
-              <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px;">API Key</label>
-              <input type="text" id="input-api-key" class="ticket-input" style="width:100%;" placeholder="e.g. your_broker_key_xyz" required />
+
+            <div id="broker-dynamic-fields">
+              <!-- Dynamically populated per broker -->
             </div>
-            <div style="margin-bottom:14px;">
-              <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px;">API Secret</label>
-              <input type="password" id="input-api-secret" class="ticket-input" style="width:100%;" placeholder="••••••••••••••••" required />
+
+            <!-- Connection verification result banner -->
+            <div id="broker-verify-result" style="display:none; margin: 12px 0; padding:8px 12px; border-radius:4px; font-size:11px; font-family:var(--font-mono);"></div>
+
+            <div style="display:flex; gap:8px; margin-top:14px;">
+              <button type="button" id="btn-test-broker-connection" class="btn-toggle" style="flex:1; justify-content:center; padding:8px; border-color:var(--color-cyan); color:var(--color-cyan);">
+                ⚡ TEST CONNECTION
+              </button>
+              <button type="submit" class="btn-primary" style="flex:1; padding:8px;">
+                🔒 VAULT CREDENTIALS
+              </button>
             </div>
-            <button type="submit" class="btn-primary" style="width:100%; padding:8px;">
-              🔒 ENCRYPT & STORE IN FERNET VAULT
-            </button>
           </form>
         </div>
       </div>
@@ -186,21 +190,17 @@ export function renderSecurityPanel(): string {
             <button class="modal-close-btn" id="btn-close-auth-modal">✕</button>
           </div>
           <div style="padding:16px;">
-            <!-- Social Better Auth Providers -->
-            <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;">
-              <button id="btn-google-login" class="btn-toggle" style="justify-content:center; padding:9px; border-color:var(--color-cyan); color:var(--text-normal);">
-                <svg width="14" height="14" viewBox="0 0 24 24" style="margin-right:8px;"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/><path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.2s.7 5.5 1.9 7.9l3.7-2.9c-.2-.7-.4-1.5-.4-2.4z"/><path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2-6.4-4.8L1.9 17C3.7 20.7 7.5 23.5 12 23.5z"/></svg>
-                Sign In with Google (Better Auth)
-              </button>
-              <button id="btn-github-login" class="btn-toggle" style="justify-content:center; padding:9px; border-color:var(--border-color); color:var(--text-normal);">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="margin-right:8px;"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-                Sign In with GitHub (Better Auth)
+            <!-- Real Google OAuth 2.0 -->
+            <div style="margin-bottom:14px;">
+              <button id="btn-google-login" class="btn-toggle" style="width:100%; justify-content:center; padding:10px; border-color:var(--color-cyan); color:var(--text-normal); font-weight:600;">
+                <svg width="16" height="16" viewBox="0 0 24 24" style="margin-right:8px;"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/><path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.2s.7 5.5 1.9 7.9l3.7-2.9c-.2-.7-.4-1.5-.4-2.4z"/><path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2-6.4-4.8L1.9 17C3.7 20.7 7.5 23.5 12 23.5z"/></svg>
+                Sign In with Google
               </button>
             </div>
 
             <div style="display:flex; align-items:center; gap:8px; margin: 12px 0;">
               <hr style="flex:1; border:none; border-top:1px solid var(--border-color);"/>
-              <span style="font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px;">Or Email & Password</span>
+              <span style="font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px;">Or Institutional Credentials</span>
               <hr style="flex:1; border:none; border-top:1px solid var(--border-color);"/>
             </div>
 
@@ -223,6 +223,109 @@ export function renderSecurityPanel(): string {
   `;
 }
 
+function renderBrokerFields(broker: string): void {
+  const container = document.getElementById('broker-dynamic-fields');
+  if (!container) return;
+
+  if (broker === 'Zerodha Kite Connect') {
+    container.innerHTML = `
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px;">Kite Connect API Key</label>
+        <input type="text" id="input-api-key" class="ticket-input" style="width:100%;" placeholder="e.g. kite_api_key_xyz" required />
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px;">Kite API Secret</label>
+        <input type="password" id="input-api-secret" class="ticket-input" style="width:100%;" placeholder="••••••••••••••••" required />
+      </div>
+    `;
+  } else if (broker === 'Groww Trade API') {
+    container.innerHTML = `
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px;">Groww Client Code / User ID</label>
+        <input type="text" id="input-client-code" class="ticket-input" style="width:100%;" placeholder="e.g. GROWW123456" required />
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px;">Account PIN</label>
+        <input type="password" id="input-pin" class="ticket-input" style="width:100%;" placeholder="••••" maxlength="6" required />
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px;">TOTP Secret Key (Base32)</label>
+        <input type="password" id="input-totp-secret" class="ticket-input" style="width:100%;" placeholder="e.g. JBSWY3DPEHPK3PXP" required />
+      </div>
+    `;
+  } else if (broker === 'Angel One SmartAPI') {
+    container.innerHTML = `
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px;">Angel One Client Code</label>
+        <input type="text" id="input-client-code" class="ticket-input" style="width:100%;" placeholder="e.g. A1234567" required />
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px;">MPIN / Password</label>
+        <input type="password" id="input-pin" class="ticket-input" style="width:100%;" placeholder="••••" required />
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px;">TOTP Secret Key (Base32)</label>
+        <input type="password" id="input-totp-secret" class="ticket-input" style="width:100%;" placeholder="e.g. JBSWY3DPEHPK3PXP" required />
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px;">SmartAPI Key</label>
+        <input type="text" id="input-api-key" class="ticket-input" style="width:100%;" placeholder="e.g. smartapi_key_xyz" required />
+      </div>
+    `;
+  } else if (broker === 'OANDA REST v20') {
+    container.innerHTML = `
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px;">OANDA Personal Access Token</label>
+        <input type="password" id="input-api-key" class="ticket-input" style="width:100%;" placeholder="Bearer Token" required />
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px;">OANDA Account ID</label>
+        <input type="text" id="input-account-id" class="ticket-input" style="width:100%;" placeholder="e.g. 101-004-1234567-001" required />
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px;">Trading Environment</label>
+        <select id="input-environment" class="ticket-input" style="width:100%;">
+          <option value="practice">Practice (Demo / Sandbox)</option>
+          <option value="live">Live (Production Trading)</option>
+        </select>
+      </div>
+    `;
+  } else if (broker === 'MetaTrader (MT4/MT5)') {
+    container.innerHTML = `
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px;">MetaApi Cloud API Token</label>
+        <input type="password" id="input-api-key" class="ticket-input" style="width:100%;" placeholder="MetaApi API Token" required />
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10px; color:var(--text-dim); display:block; margin-bottom:4px;">MetaApi Account ID</label>
+        <input type="text" id="input-account-id" class="ticket-input" style="width:100%;" placeholder="e.g. 48f93... (UUID)" required />
+      </div>
+    `;
+  }
+}
+
+function getBrokerFormValues() {
+  const broker = (document.getElementById('input-broker-name') as HTMLSelectElement)?.value || 'Zerodha Kite Connect';
+  const apiKey = (document.getElementById('input-api-key') as HTMLInputElement)?.value || '';
+  const apiSecret = (document.getElementById('input-api-secret') as HTMLInputElement)?.value || '';
+  const clientCode = (document.getElementById('input-client-code') as HTMLInputElement)?.value || '';
+  const pin = (document.getElementById('input-pin') as HTMLInputElement)?.value || '';
+  const totpSecret = (document.getElementById('input-totp-secret') as HTMLInputElement)?.value || '';
+  const accountId = (document.getElementById('input-account-id') as HTMLInputElement)?.value || '';
+  const environment = (document.getElementById('input-environment') as HTMLSelectElement)?.value || 'live';
+
+  return {
+    broker_name: broker,
+    api_key: apiKey,
+    api_secret: apiSecret,
+    client_code: clientCode,
+    pin: pin,
+    totp_secret: totpSecret,
+    account_id: accountId,
+    environment: environment,
+  };
+}
+
 export function setupSecurityEventListeners(): void {
   // Mode toggle
   document.getElementById('btn-toggle-mode')?.addEventListener('click', async () => {
@@ -239,22 +342,62 @@ export function setupSecurityEventListeners(): void {
 
   // Add Key Modal
   const keyModal = document.getElementById('add-key-modal');
+  const brokerSelect = document.getElementById('input-broker-name') as HTMLSelectElement;
+
   document.getElementById('btn-add-vault-key')?.addEventListener('click', () => {
     keyModal?.classList.remove('hidden');
+    if (brokerSelect) {
+      renderBrokerFields(brokerSelect.value);
+    }
   });
+
+  brokerSelect?.addEventListener('change', () => {
+    renderBrokerFields(brokerSelect.value);
+    const resultBox = document.getElementById('broker-verify-result');
+    if (resultBox) resultBox.style.display = 'none';
+  });
+
   document.getElementById('btn-close-key-modal')?.addEventListener('click', () => {
     keyModal?.classList.add('hidden');
   });
 
-  document.getElementById('vault-key-form')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const broker = (document.getElementById('input-broker-name') as HTMLSelectElement).value;
-    const key = (document.getElementById('input-api-key') as HTMLInputElement).value;
-    const sec = (document.getElementById('input-api-secret') as HTMLInputElement).value;
+  // Test Connection
+  document.getElementById('btn-test-broker-connection')?.addEventListener('click', async () => {
+    const payload = getBrokerFormValues();
+    const resultBox = document.getElementById('broker-verify-result');
+    if (!resultBox) return;
+
+    resultBox.style.display = 'block';
+    resultBox.style.background = 'rgba(0, 180, 216, 0.1)';
+    resultBox.style.border = '1px solid var(--color-cyan)';
+    resultBox.innerHTML = `<span>⏳ Verifying handshake with ${payload.broker_name}...</span>`;
 
     try {
-      await saveVaultKey({ broker_name: broker, api_key: key, api_secret: sec });
-      alert(`API Key for ${broker} securely vaulted with AES-128 Fernet encryption!`);
+      const res = await verifyBrokerConnection(payload);
+      if (res.status === 'CONNECTED') {
+        resultBox.style.background = 'rgba(16, 185, 129, 0.15)';
+        resultBox.style.border = '1px solid var(--color-green)';
+        resultBox.innerHTML = `<span class="val-green">✓ Verified connected to ${res.broker}! Latency: ${res.latency_ms}ms (${res.details?.mode || 'LIVE'})</span>`;
+      } else {
+        resultBox.style.background = 'rgba(239, 68, 68, 0.15)';
+        resultBox.style.border = '1px solid var(--color-red)';
+        resultBox.innerHTML = `<span class="val-red">✗ Verification failed: ${res.message || 'Unable to connect'}</span>`;
+      }
+    } catch (err: any) {
+      resultBox.style.background = 'rgba(239, 68, 68, 0.15)';
+      resultBox.style.border = '1px solid var(--color-red)';
+      resultBox.innerHTML = `<span class="val-red">✗ Verification error: ${err.message}</span>`;
+    }
+  });
+
+  // Vault key submit
+  document.getElementById('vault-key-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = getBrokerFormValues();
+
+    try {
+      await saveVaultKey(payload);
+      alert(`API Key and credentials for ${payload.broker_name} securely vaulted with AES-128 Fernet encryption!`);
       keyModal?.classList.add('hidden');
       store.vaultKeys = await fetchVaultKeys();
       store.notify();
@@ -272,33 +415,9 @@ export function setupSecurityEventListeners(): void {
     authModal?.classList.add('hidden');
   });
 
-  // Social Login with Better Auth (Google / GitHub)
-  document.getElementById('btn-google-login')?.addEventListener('click', async () => {
-    const promptEmail = prompt('Enter your Google Account email to authenticate:', 'trader@google.com');
-    if (!promptEmail) return;
-    try {
-      const res = await oauthSocialLogin('google', promptEmail, promptEmail.split('@')[0]);
-      store.currentUser = res.user;
-      alert(`Authenticated with Google via Better Auth! Welcome, ${res.user.username}`);
-      authModal?.classList.add('hidden');
-      store.notify();
-    } catch (err: any) {
-      alert(`Google Auth Failed: ${err.message}`);
-    }
-  });
-
-  document.getElementById('btn-github-login')?.addEventListener('click', async () => {
-    const promptEmail = prompt('Enter your GitHub Account email to authenticate:', 'trader@github.com');
-    if (!promptEmail) return;
-    try {
-      const res = await oauthSocialLogin('github', promptEmail, promptEmail.split('@')[0]);
-      store.currentUser = res.user;
-      alert(`Authenticated with GitHub via Better Auth! Welcome, ${res.user.username}`);
-      authModal?.classList.add('hidden');
-      store.notify();
-    } catch (err: any) {
-      alert(`GitHub Auth Failed: ${err.message}`);
-    }
+  // Real Google OAuth 2.0 (Zero mock alerts/prompts)
+  document.getElementById('btn-google-login')?.addEventListener('click', () => {
+    window.location.href = '/api/auth/oauth/google';
   });
 
   document.getElementById('btn-login-submit')?.addEventListener('click', async () => {
@@ -307,7 +426,6 @@ export function setupSecurityEventListeners(): void {
     try {
       const res = await loginUser({ username: u, password: p });
       store.currentUser = res.user;
-      alert(`Welcome back, ${res.user.username}! Role: ${res.user.role}`);
       authModal?.classList.add('hidden');
       store.notify();
     } catch (err: any) {
@@ -321,7 +439,6 @@ export function setupSecurityEventListeners(): void {
     try {
       const res = await registerUser({ username: u, email: `${u}@quantumfloor.institutional`, password: p });
       store.currentUser = res.user;
-      alert(`Registration successful! User ID: ${res.user.user_id}`);
       authModal?.classList.add('hidden');
       store.notify();
     } catch (err: any) {

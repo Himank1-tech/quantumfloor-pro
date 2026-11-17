@@ -10,11 +10,14 @@ import asyncio
 import json
 import datetime
 import uuid
+import secrets
+import urllib.parse
 import numpy as np
+import httpx
 
 from fastapi import FastAPI, HTTPException, Query, Body, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.responses import StreamingResponse
+from starlette.responses import StreamingResponse, RedirectResponse
 from sqlalchemy import text
 from .storage import storage_client
 
@@ -22,6 +25,11 @@ from .analytics.quant import compute_portfolio_quant_metrics
 from .brokers.base import OrderSide, OrderType, AssetClass
 from .brokers.indian_broker import IndianBrokerAdapter
 from .brokers.forex_broker import ForexBrokerAdapter
+from .brokers.zerodha_adapter import ZerodhaKiteAdapter
+from .brokers.groww_adapter import GrowwTradeAdapter
+from .brokers.angelone_adapter import AngelOneSmartAPIAdapter
+from .brokers.oanda_adapter import OandaV20Adapter
+from .brokers.metatrader_adapter import MetaTraderMetaApiAdapter
 from .risk.governor import RiskGovernor, CircuitBreakerState
 from .agents.mcp_servers import TradingMCPServer
 from .agents.floor_manager import FloorManager
@@ -341,7 +349,8 @@ def get_quant_analytics():
 
 
 @app.post("/api/manual/order")
-def place_manual_order(data: Dict[str, Any] = Body(...)):
+def place_manual_order(request: Request, data: Dict[str, Any] = Body(...)):
+    user = get_current_user_from_request(request)
     symbol = data.get("symbol", "").upper()
     side_str = data.get("side", "BUY").upper()
     side = OrderSide.BUY if side_str == "BUY" else OrderSide.SELL
@@ -349,6 +358,7 @@ def place_manual_order(data: Dict[str, Any] = Body(...)):
     price = float(data.get("price", 0))
     stop_loss = data.get("stop_loss")
     take_profit = data.get("take_profit")
+    execution_mode = data.get("execution_mode", "PAPER").upper()
     asset_class = "INDIAN_EQUITY" if "/" not in symbol else "FOREX"
 
     summary = accounts.get_unified_summary(
@@ -375,8 +385,66 @@ def place_manual_order(data: Dict[str, Any] = Body(...)):
             detail={"message": "Order rejected by Risk Governor", "audit": risk_eval.audit_trail},
         )
 
-    # 2. Execution Engine Dispatch
     exec_qty = risk_eval.approved_quantity
+    live_broker_result = None
+
+    # 2. Live Broker Routing (if LIVE execution toggle is active)
+    if execution_mode == "LIVE":
+        vault_keys = db.get_user_broker_keys(user["user_id"])
+        if asset_class == "INDIAN_EQUITY":
+            broker_found = None
+            for bk in vault_keys:
+                bname = bk.get("broker_name", "").lower()
+                if any(x in bname for x in ["zerodha", "groww", "angel"]):
+                    broker_found = bk.get("broker_name")
+                    break
+
+            if broker_found:
+                creds = db.get_user_decrypted_broker_key(user["user_id"], broker_found) or {}
+                bname_l = broker_found.lower()
+                if "zerodha" in bname_l:
+                    z_adapter = ZerodhaKiteAdapter(api_key=creds.get("api_key", ""), api_secret=creds.get("api_secret", ""))
+                    live_broker_result = z_adapter.place_order(symbol=symbol, transaction_type=side_str, quantity=int(exec_qty), price=price)
+                elif "groww" in bname_l:
+                    g_adapter = GrowwTradeAdapter(api_key=creds.get("api_key", ""), api_secret=creds.get("api_secret", ""))
+                    live_broker_result = g_adapter.place_order(symbol=symbol, transaction_type=side_str, quantity=int(exec_qty), price=price)
+                elif "angel" in bname_l:
+                    a_adapter = AngelOneSmartAPIAdapter(api_key=creds.get("api_key", ""), client_code=creds.get("client_code", ""), pin=creds.get("pin", ""))
+                    live_broker_result = a_adapter.place_order(tradingsymbol=symbol, symboltoken="3045", transactiontype=side_str, quantity=int(exec_qty), price=price)
+            else:
+                raise HTTPException(status_code=400, detail="LIVE execution requested, but no Indian broker (Zerodha, Groww, Angel One) is configured in your Vault. Please add credentials under Account -> Vault.")
+        else:
+            broker_found = None
+            for bk in vault_keys:
+                bname = bk.get("broker_name", "").lower()
+                if any(x in bname for x in ["oanda", "metatrader", "metaapi"]):
+                    broker_found = bk.get("broker_name")
+                    break
+
+            if broker_found:
+                creds = db.get_user_decrypted_broker_key(user["user_id"], broker_found) or {}
+                bname_l = broker_found.lower()
+                if "oanda" in bname_l:
+                    o_adapter = OandaV20Adapter(api_token=creds.get("api_key", ""), account_id=creds.get("account_id", ""), environment=creds.get("environment", "LIVE"))
+                    live_broker_result = o_adapter.create_order(instrument=symbol.replace("/", "_"), units=exec_qty, stop_loss=stop_loss, take_profit=take_profit)
+                elif "metatrader" in bname_l:
+                    m_adapter = MetaTraderMetaApiAdapter(api_token=creds.get("api_key", ""), account_id=creds.get("account_id", ""))
+                    action = "ORDER_TYPE_BUY" if side_str == "BUY" else "ORDER_TYPE_SELL"
+                    live_broker_result = m_adapter.execute_trade(symbol=symbol.replace("/", ""), action_type=action, volume=exec_qty / 100000.0, stop_loss=stop_loss, take_profit=take_profit)
+            else:
+                raise HTTPException(status_code=400, detail="LIVE execution requested, but no Forex broker (OANDA, MetaTrader) is configured in your Vault. Please add credentials under Account -> Vault.")
+
+        db.record_audit_log({
+            "log_id": f"AUD-LIVE-{uuid.uuid4().hex[:6].upper()}",
+            "user_id": user["user_id"],
+            "username": user["username"],
+            "action": "LIVE_BROKER_EXECUTION",
+            "resource": "REAL_EXCHANGE_GATEWAY",
+            "status": "SUCCESS",
+            "details": {"symbol": symbol, "side": side_str, "qty": exec_qty, "broker_response": live_broker_result},
+        })
+
+    # 3. Execution Engine Dispatch (Simulated Paper Ledger)
     if asset_class == "INDIAN_EQUITY":
         res = indian_broker.place_order(
             symbol=symbol,
@@ -386,7 +454,7 @@ def place_manual_order(data: Dict[str, Any] = Body(...)):
             price=price,
             stop_loss=stop_loss,
             take_profit=take_profit,
-            tag="MANUAL_TICKET",
+            tag=f"MANUAL_{execution_mode}",
         )
     else:
         res = forex_broker.place_order(
@@ -397,7 +465,7 @@ def place_manual_order(data: Dict[str, Any] = Body(...)):
             price=price,
             stop_loss=stop_loss,
             take_profit=take_profit,
-            tag="MANUAL_TICKET",
+            tag=f"MANUAL_{execution_mode}",
         )
 
     if not res.success:
@@ -405,8 +473,10 @@ def place_manual_order(data: Dict[str, Any] = Body(...)):
 
     return {
         "success": True,
+        "execution_mode": execution_mode,
         "order": res.order.model_dump() if res.order else None,
         "risk_governor": risk_eval.model_dump(),
+        "live_broker_result": live_broker_result,
     }
 
 
@@ -545,12 +615,28 @@ def get_vault_keys(request: Request):
 @app.post("/api/auth/vault/keys")
 def save_vault_key(request: Request, data: BrokerKeyInput = Body(...)):
     user = get_current_user_from_request(request)
+    secret_payload: Dict[str, Any] = {
+        "api_secret": data.api_secret or "",
+    }
+    if data.client_code:
+        secret_payload["client_code"] = data.client_code
+    if data.pin:
+        secret_payload["pin"] = data.pin
+    if data.totp_secret:
+        secret_payload["totp_secret"] = data.totp_secret
+    if data.account_id:
+        secret_payload["account_id"] = data.account_id
+    if data.extra_token:
+        secret_payload["extra_token"] = data.extra_token
+
+    env = (data.environment or "LIVE").upper()
+
     db.save_encrypted_broker_key(
         user_id=user["user_id"],
         broker_name=data.broker_name,
         plain_api_key=data.api_key,
-        plain_secret=data.api_secret,
-        environment="LIVE",
+        plain_secret=secret_payload,
+        environment=env,
     )
     db.record_audit_log({
         "log_id": f"AUD-KEY-{uuid.uuid4().hex[:6].upper()}",
@@ -559,9 +645,74 @@ def save_vault_key(request: Request, data: BrokerKeyInput = Body(...)):
         "action": "UPDATE_BROKER_KEY_VAULT",
         "resource": "FERNET_VAULT",
         "status": "SUCCESS",
-        "details": {"broker": data.broker_name},
+        "details": {"broker": data.broker_name, "environment": env},
     })
-    return {"status": "SUCCESS", "broker_name": data.broker_name, "message": "API Key securely encrypted and vaulted."}
+    return {
+        "status": "SUCCESS",
+        "broker_name": data.broker_name,
+        "message": f"Credentials for {data.broker_name} securely encrypted with Fernet AES-128 and vaulted."
+    }
+
+
+@app.post("/api/brokers/verify")
+def verify_broker_credentials(request: Request, data: Dict[str, Any] = Body(...)):
+    """
+    Decrypts user's stored credentials from broker_vault (or validates newly provided credentials),
+    executes live API handshake against the real broker, and returns live status and balances.
+    """
+    user = get_current_user_from_request(request)
+    broker_name = data.get("broker_name", "")
+    if not broker_name:
+        raise HTTPException(status_code=400, detail="broker_name is required")
+
+    api_key = data.get("api_key")
+    api_secret = data.get("api_secret", "")
+    client_code = data.get("client_code")
+    pin = data.get("pin")
+    totp_secret = data.get("totp_secret")
+    account_id = data.get("account_id")
+    environment = data.get("environment", "LIVE")
+
+    if not api_key:
+        stored = db.get_user_decrypted_broker_key(user["user_id"], broker_name)
+        if stored:
+            api_key = stored.get("api_key", "")
+            api_secret = stored.get("api_secret", "")
+            client_code = stored.get("client_code")
+            pin = stored.get("pin")
+            totp_secret = stored.get("totp_secret")
+            account_id = stored.get("account_id")
+            environment = stored.get("environment", "LIVE")
+
+    bname_lower = broker_name.lower()
+    adapter = None
+    if "zerodha" in bname_lower or "kite" in bname_lower:
+        adapter = ZerodhaKiteAdapter(api_key=api_key or "", api_secret=api_secret or "", user_id=user["user_id"])
+    elif "groww" in bname_lower:
+        adapter = GrowwTradeAdapter(api_key=api_key or "", api_secret=api_secret or "", totp_secret=totp_secret or "", user_id=user["user_id"])
+    elif "angel" in bname_lower or "smartapi" in bname_lower:
+        adapter = AngelOneSmartAPIAdapter(api_key=api_key or "", client_code=client_code or "", pin=pin or "", totp_secret=totp_secret or "", user_id=user["user_id"])
+    elif "oanda" in bname_lower:
+        adapter = OandaV20Adapter(api_token=api_key or "", account_id=account_id or "", environment=environment, user_id=user["user_id"])
+    elif "metatrader" in bname_lower or "metaapi" in bname_lower or "mt4" in bname_lower or "mt5" in bname_lower:
+        adapter = MetaTraderMetaApiAdapter(api_token=api_key or "", account_id=account_id or "", platform=environment, user_id=user["user_id"])
+    else:
+        raise HTTPException(status_code=400, detail=f"Unsupported broker: {broker_name}")
+
+    result = adapter.verify_connection()
+    is_connected = result.get("success", False)
+    db.update_broker_connection_status(user["user_id"], broker_name, is_connected)
+
+    db.record_audit_log({
+        "log_id": f"AUD-VERIFY-{uuid.uuid4().hex[:6].upper()}",
+        "user_id": user["user_id"],
+        "username": user["username"],
+        "action": "VERIFY_BROKER_CONNECTION",
+        "resource": "BROKER_ADAPTER",
+        "status": "SUCCESS" if is_connected else "FAILED",
+        "details": {"broker": broker_name, "connected": is_connected, "result": result},
+    })
+    return result
 
 
 @app.get("/api/audit/logs")
@@ -795,104 +946,115 @@ def list_storage_reports(prefix: str = Query("")):
     return storage_client.list_reports(prefix=prefix)
 
 
-# ==================== BETTER AUTH & SOCIAL SIGN-IN ROUTES ====================
+# ==================== REAL GOOGLE OAUTH 2.0 AUTHENTICATION ====================
 
-@app.post("/api/auth/oauth/social-login")
-def oauth_social_login(data: Dict[str, Any] = Body(...)):
+_oauth_states: Dict[str, float] = {}
+
+@app.get("/api/auth/oauth/google")
+def google_oauth_redirect(request: Request):
     """
-    Synchronizes Better Auth social providers (Google/GitHub) with QuantumFloor
-    institutional RBAC, creating entries in Better Auth tables ('user', 'account')
-    and syncing into 'users' and 'portfolios'.
+    Initiates genuine Google OAuth 2.0 authorization redirect.
+    Redirects with HTTP 302 directly to https://accounts.google.com/o/oauth2/v2/auth.
     """
-    provider = data.get("provider", "google").lower()
-    email = data.get("email")
-    name = data.get("name") or (email.split("@")[0] if email else "trader")
-    avatar = data.get("avatar_url", "")
+    client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
+    redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI", "https://quantumfloor-pro.onrender.com/api/auth/callback/google")
 
-    if not email:
-        raise HTTPException(status_code=400, detail="Email is required for social authentication")
+    # Prune expired states (> 10 mins)
+    now_ts = datetime.datetime.now().timestamp()
+    for s, exp in list(_oauth_states.items()):
+        if exp < now_ts:
+            _oauth_states.pop(s, None)
 
-    user_id = f"USR-{provider[:3].upper()}-{abs(hash(email)) % 1000000:06d}"
+    state = secrets.token_urlsafe(32)
+    _oauth_states[state] = now_ts + 600.0
 
-    with db.engine.begin() as conn:
-        try:
-            now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
-            user_exists = conn.execute(
-                text('SELECT id FROM "user" WHERE email = :email'),
-                {"email": email}
-            ).fetchone()
-
-            ba_user_id = user_exists[0] if user_exists else f"ba_{uuid.uuid4().hex[:12]}"
-            if not user_exists:
-                conn.execute(
-                    text('INSERT INTO "user" (id, name, email, "emailVerified", image, "createdAt", "updatedAt") VALUES (:id, :name, :email, true, :img, :ca, :ua)'),
-                    {"id": ba_user_id, "name": name, "email": email, "img": avatar, "ca": now_iso, "ua": now_iso}
-                )
-                conn.execute(
-                    text('INSERT INTO "account" (id, "userId", "accountId", "providerId", "createdAt", "updatedAt") VALUES (:id, :uid, :aid, :pid, :ca, :ua)'),
-                    {"id": f"acc_{uuid.uuid4().hex[:12]}", "uid": ba_user_id, "aid": email, "pid": provider, "ca": now_iso, "ua": now_iso}
-                )
-        except Exception as e:
-            # Table constraints handled gracefully
-            pass
-
-        existing_qf = conn.execute(
-            text("SELECT user_id, username, email, role, investment_mode FROM users WHERE email = :email"),
-            {"email": email}
-        ).mappings().fetchone()
-
-        if existing_qf:
-            qf_user = dict(existing_qf)
-        else:
-            conn.execute(
-                text("""
-                    INSERT INTO users (user_id, username, email, password_hash, role, investment_mode, totp_enabled, created_at)
-                    VALUES (:uid, :un, :em, :pw, 'TRADER', 'AUTONOMOUS_TRADING', 0, :created)
-                """),
-                {
-                    "uid": user_id,
-                    "un": name,
-                    "em": email,
-                    "pw": f"oauth_{provider}_{uuid.uuid4().hex}",
-                    "created": datetime.datetime.now(datetime.timezone.utc).isoformat()
-                }
-            )
-            try:
-                conn.execute(
-                    text("""
-                        INSERT INTO portfolios (portfolio_id, user_id, name, currency, total_value, cash_balance)
-                        VALUES (:pid, :uid, :name, 'INR', 1000000.0, 1000000.0)
-                    """),
-                    {"pid": f"PF-{user_id}", "uid": user_id, "name": f"{name}'s Portfolio"}
-                )
-            except Exception:
-                pass
-
-            qf_user = {
-                "user_id": user_id,
-                "username": name,
-                "email": email,
-                "role": "TRADER",
-                "investment_mode": "AUTONOMOUS_TRADING"
-            }
-
-    db.record_audit_log({
-        "log_id": f"AUD-OAUTH-{uuid.uuid4().hex[:6].upper()}",
-        "user_id": qf_user["user_id"],
-        "username": qf_user["username"],
-        "action": "OAUTH_LOGIN",
-        "resource": "BETTER_AUTH",
-        "status": "SUCCESS",
-        "details": {"provider": provider, "email": email},
-    })
-
-    token = create_access_token({"sub": qf_user["user_id"], "username": qf_user["username"], "role": qf_user["role"]})
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user": qf_user,
-        "provider": provider
+    params = {
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "access_type": "offline",
+        "prompt": "select_account"
     }
+    google_auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urllib.parse.urlencode(params)}"
+    return RedirectResponse(url=google_auth_url, status_code=302)
+
+
+@app.get("/api/auth/callback/google")
+async def google_oauth_callback(
+    code: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+    error: Optional[str] = Query(None)
+):
+    """
+    Exchanges Google authorization code for access_token, fetches verified profile
+    from Google OAuth2 userinfo, synchronizes with PostgreSQL, and issues signed JWT.
+    """
+    if error or not code:
+        err_msg = error or "Authorization code missing from Google callback"
+        return RedirectResponse(url=f"/?auth_error={urllib.parse.quote(err_msg)}", status_code=302)
+
+    client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+    redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI", "https://quantumfloor-pro.onrender.com/api/auth/callback/google")
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            token_resp = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "code": code,
+                    "grant_type": "authorization_code",
+                    "redirect_uri": redirect_uri,
+                },
+                headers={"Accept": "application/json"}
+            )
+            token_data = token_resp.json()
+            if token_resp.status_code != 200 or "access_token" not in token_data:
+                err_detail = token_data.get("error_description", token_data.get("error", "Token exchange failed"))
+                return RedirectResponse(url=f"/?auth_error={urllib.parse.quote(err_detail)}", status_code=302)
+
+            access_token = token_data["access_token"]
+            userinfo_resp = await client.get(
+                "https://www.googleapis.com/oauth2/v3/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            userinfo = userinfo_resp.json()
+            if userinfo_resp.status_code != 200 or "email" not in userinfo:
+                return RedirectResponse(url="/?auth_error=Failed+to+retrieve+Google+userinfo", status_code=302)
+
+            email = userinfo["email"]
+            name = userinfo.get("name") or email.split("@")[0]
+            picture = userinfo.get("picture", "")
+
+            # Idempotent upsert into PostgreSQL (users, user, account, portfolios)
+            qf_user = db.upsert_oauth_user(email=email, name=name, picture=picture, provider="google")
+
+            # Immutable security audit log
+            db.record_audit_log({
+                "log_id": f"AUD-GOOG-{uuid.uuid4().hex[:6].upper()}",
+                "user_id": qf_user["user_id"],
+                "username": qf_user["username"],
+                "action": "GOOGLE_OAUTH_LOGIN",
+                "resource": "GOOGLE_IDENTITY",
+                "status": "SUCCESS",
+                "details": {"email": email, "name": name},
+            })
+
+            # Issue 24-hour signed JWT access token
+            jwt_token = create_access_token({
+                "sub": qf_user["user_id"],
+                "username": qf_user["username"],
+                "role": qf_user["role"]
+            })
+
+            redirect_target = f"/?auth_token={jwt_token}&email={urllib.parse.quote(email)}&name={urllib.parse.quote(name)}"
+            return RedirectResponse(url=redirect_target, status_code=302)
+    except Exception as e:
+        return RedirectResponse(url=f"/?auth_error={urllib.parse.quote(str(e))}", status_code=302)
 
 
 # ==================== WEBSOCKET REALTIME STREAM ====================

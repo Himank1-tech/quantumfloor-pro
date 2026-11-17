@@ -74,8 +74,13 @@ class BrokerKeyItem(BaseModel):
 class BrokerKeyInput(BaseModel):
     broker_name: str
     api_key: str
-    api_secret: str
-    extra_token: Optional[str] = None  # TOTP secret or client ID
+    api_secret: Optional[str] = ""
+    client_code: Optional[str] = None
+    pin: Optional[str] = None
+    totp_secret: Optional[str] = None
+    account_id: Optional[str] = None
+    environment: Optional[str] = "LIVE"
+    extra_token: Optional[str] = None
 
 
 class AuditLogEntry(BaseModel):

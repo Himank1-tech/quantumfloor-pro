@@ -14,7 +14,7 @@ from typing import Dict, List, Any, Optional
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
-from .auth.security import hash_password, encrypt_secret, mask_secret
+from .auth.security import hash_password, encrypt_secret, decrypt_secret, mask_secret
 
 logger = logging.getLogger("quantumfloor.database")
 
@@ -680,6 +680,83 @@ class Database:
             ).mappings().fetchone()
             return dict(row) if row else None
 
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        with self.engine.connect() as conn:
+            row = conn.execute(
+                text("SELECT * FROM users WHERE email = :email"),
+                {"email": email}
+            ).mappings().fetchone()
+            return dict(row) if row else None
+
+    def upsert_oauth_user(self, email: str, name: str, picture: str = "", provider: str = "google") -> Dict[str, Any]:
+        """
+        Idempotently synchronizes a Google OAuth user with QuantumFloor users,
+        Better Auth tables ('user', 'account'), and creates default portfolio.
+        """
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        user_id = f"USR-{provider[:4].upper()}-{abs(hash(email)) % 1000000:06d}"
+
+        with self.engine.begin() as conn:
+            # 1. Check or insert into users table
+            existing = conn.execute(
+                text("SELECT user_id, username, email, role, investment_mode FROM users WHERE email = :email"),
+                {"email": email}
+            ).mappings().fetchone()
+
+            if existing:
+                qf_user = dict(existing)
+            else:
+                conn.execute(
+                    text("""
+                        INSERT INTO users (user_id, username, email, password_hash, role, investment_mode, totp_enabled, created_at)
+                        VALUES (:uid, :un, :em, :pw, 'TRADER', 'AUTONOMOUS_TRADING', 0, :created)
+                    """),
+                    {
+                        "uid": user_id, "un": name, "em": email,
+                        "pw": f"oauth_{provider}_{uuid.uuid4().hex}",
+                        "created": now
+                    }
+                )
+                try:
+                    conn.execute(
+                        text("""
+                            INSERT INTO portfolios (portfolio_id, user_id, name, currency, total_value, cash_balance)
+                            VALUES (:pid, :uid, :name, 'INR', 1000000.0, 1000000.0)
+                        """),
+                        {"pid": f"PF-{user_id}", "uid": user_id, "name": f"{name}'s Portfolio"}
+                    )
+                except Exception:
+                    pass
+
+                qf_user = {
+                    "user_id": user_id,
+                    "username": name,
+                    "email": email,
+                    "role": "TRADER",
+                    "investment_mode": "AUTONOMOUS_TRADING"
+                }
+
+            # 2. Synchronize into Better Auth tables if present
+            try:
+                ba_check = conn.execute(
+                    text('SELECT id FROM "user" WHERE email = :email'),
+                    {"email": email}
+                ).fetchone()
+                ba_uid = ba_check[0] if ba_check else f"ba_{uuid.uuid4().hex[:12]}"
+                if not ba_check:
+                    conn.execute(
+                        text('INSERT INTO "user" (id, name, email, "emailVerified", image, "createdAt", "updatedAt") VALUES (:id, :name, :email, true, :img, :ca, :ua)'),
+                        {"id": ba_uid, "name": name, "email": email, "img": picture, "ca": now, "ua": now}
+                    )
+                    conn.execute(
+                        text('INSERT INTO "account" (id, "userId", "accountId", "providerId", "createdAt", "updatedAt") VALUES (:id, :uid, :aid, :pid, :ca, :ua)'),
+                        {"id": f"acc_{uuid.uuid4().hex[:12]}", "uid": ba_uid, "aid": email, "pid": provider, "ca": now, "ua": now}
+                    )
+            except Exception:
+                pass
+
+        return qf_user
+
     def create_user(self, user_id: str, username: str, email: str, password_hash: str, role: str, mode: str) -> Dict[str, Any]:
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         with self.engine.begin() as conn:
@@ -702,12 +779,13 @@ class Database:
                 {"mode": mode, "uid": user_id}
             )
 
-    def save_encrypted_broker_key(self, user_id: str, broker_name: str, plain_api_key: str, plain_secret: str, environment: str = "LIVE") -> None:
+    def save_encrypted_broker_key(self, user_id: str, broker_name: str, plain_api_key: str, plain_secret: Any, environment: str = "LIVE") -> None:
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        secret_str = json.dumps(plain_secret) if isinstance(plain_secret, dict) else str(plain_secret)
         enc_key = encrypt_secret(plain_api_key)
-        enc_sec = encrypt_secret(plain_secret)
+        enc_sec = encrypt_secret(secret_str)
         masked_key = mask_secret(plain_api_key)
-        masked_sec = mask_secret(plain_secret)
+        masked_sec = "MASKED_VAULT_PAYLOAD" if isinstance(plain_secret, dict) else mask_secret(str(plain_secret))
 
         params = {
             "uid": user_id, "bname": broker_name, "k": enc_key, "s": enc_sec,
@@ -758,6 +836,53 @@ class Database:
                 {"uid": user_id}
             ).mappings().fetchall()
             return [dict(r) for r in rows]
+
+    def get_user_decrypted_broker_key(self, user_id: str, broker_name: str) -> Optional[Dict[str, Any]]:
+        with self.engine.connect() as conn:
+            row = conn.execute(
+                text("SELECT broker_name, encrypted_api_key, encrypted_secret, environment, is_connected FROM broker_vault WHERE user_id = :uid AND broker_name = :bname"),
+                {"uid": user_id, "bname": broker_name}
+            ).mappings().fetchone()
+            if not row:
+                row = conn.execute(
+                    text("SELECT broker_name, encrypted_api_key, encrypted_secret, environment, is_connected FROM encrypted_keys WHERE user_id = :uid AND broker_name = :bname"),
+                    {"uid": user_id, "bname": broker_name}
+                ).mappings().fetchone()
+            if not row:
+                return None
+
+            api_key = decrypt_secret(row["encrypted_api_key"])
+            raw_secret = decrypt_secret(row["encrypted_secret"])
+
+            secret_data = {}
+            try:
+                parsed = json.loads(raw_secret)
+                if isinstance(parsed, dict):
+                    secret_data = parsed
+                else:
+                    secret_data = {"api_secret": raw_secret}
+            except Exception:
+                secret_data = {"api_secret": raw_secret}
+
+            return {
+                "broker_name": row["broker_name"],
+                "api_key": api_key,
+                "environment": row["environment"] or "LIVE",
+                "is_connected": bool(row["is_connected"]),
+                **secret_data
+            }
+
+    def update_broker_connection_status(self, user_id: str, broker_name: str, is_connected: bool) -> None:
+        conn_val = 1 if is_connected else 0
+        with self.engine.begin() as conn:
+            conn.execute(
+                text("UPDATE broker_vault SET is_connected = :c WHERE user_id = :uid AND broker_name = :bname"),
+                {"c": conn_val, "uid": user_id, "bname": broker_name}
+            )
+            conn.execute(
+                text("UPDATE encrypted_keys SET is_connected = :c WHERE user_id = :uid AND broker_name = :bname"),
+                {"c": conn_val, "uid": user_id, "bname": broker_name}
+            )
 
     def record_audit_log(self, entry: Dict[str, Any]) -> None:
         params = {
