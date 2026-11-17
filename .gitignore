@@ -1,0 +1,53 @@
+# ==============================================================================
+# QuantumFloor Pro - Strict Production Git Ignore
+# Exclude all secrets, database files, binary media, and ephemeral build outputs
+# ==============================================================================
+
+# Environment secrets (strictly excluded)
+.env
+.env.*
+!.env.example
+
+# Database files & WAL journals (strictly excluded)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Large media files & screen recordings (strictly excluded)
+*.mp4
+*.webm
+*.wav
+*.avi
+*.mkv
+*.mov
+*.flv
+
+# Frontend dependencies & production build outputs
+node_modules/
+dist/
+build/
+.npm
+*.log
+
+# Python compilation & cache artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# IDE & Operating System artifacts
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini

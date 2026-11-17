@@ -1,0 +1,33 @@
+# ==============================================================================
+# QuantumFloor Pro - Render Infrastructure as Code Blueprint
+# Dockerized multi-agent institutional trading platform
+# ==============================================================================
+
+services:
+  - type: web
+    name: quantumfloor-pro
+    runtime: docker
+    dockerfilePath: Dockerfile
+    plan: starter
+    region: singapore
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 8001
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FERNET_KEY
+        sync: false
+      - key: SIMULATION_MODE
+        value: "true"
+      - key: DEFAULT_INR_CAPITAL
+        value: "1000000.0"
+      - key: DEFAULT_USD_CAPITAL
+        value: "25000.0"
