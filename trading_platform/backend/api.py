@@ -770,7 +770,7 @@ async def get_replay_step(
 @app.post("/api/storage/export-blotter")
 def export_trade_blotter_report():
     """Generates CSV trade blotter and uploads it directly to Neon Object Storage bucket."""
-    trades = [t.model_dump() for t in indian_broker.get_trades()]
+    trades = db.get_trades(limit=100)
     result = storage_client.export_trade_blotter(trades)
     return result
 
