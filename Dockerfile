@@ -52,7 +52,8 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     cryptography \
     PyJWT \
     bcrypt \
-    python-dotenv
+    python-dotenv \
+    boto3
 
 # Copy backend source code
 COPY trading_platform/ /app/trading_platform/

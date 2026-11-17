@@ -16,6 +16,7 @@ import {
   fetchSMCAnalysis,
   fetchMTFSetup,
   fetchDebates,
+  exportTradeBlotterReport,
   MTFSetupReport,
 } from './api';
 import { PriceChartEngine, EquityCurveChartEngine } from './chart';
@@ -199,6 +200,9 @@ export function renderFloorPanel(): string {
                   <span>TRADE BLOTTER</span>
                 </button>
               </div>
+              <button id="btn-export-blotter-s3" class="btn-toggle" style="font-size:10px; padding:3px 10px; margin-left:auto; display:flex; align-items:center; gap:4px; border-color:var(--color-cyan); color:var(--color-cyan);">
+                <span>☁️ EXPORT CSV (NEON STORAGE)</span>
+              </button>
             </div>
 
             <div class="blotter-card-body">
@@ -608,6 +612,16 @@ function setupEventListeners(): void {
   tabBook?.addEventListener('click', () => setBlotterTab('ORDERBOOK'));
   tabOrd?.addEventListener('click', () => setBlotterTab('ORDERS'));
   tabTrd?.addEventListener('click', () => setBlotterTab('TRADES'));
+
+  document.getElementById('btn-export-blotter-s3')?.addEventListener('click', async () => {
+    try {
+      const res = await exportTradeBlotterReport();
+      alert(`Trade Blotter exported to Neon Object Storage!\nFile: ${res.filename}\nRows: ${res.count}\n\nPresigned URL generated (valid 24h). Opening download...`);
+      window.open(res.url, '_blank');
+    } catch (err: any) {
+      alert(`Export Failed: ${err.message}`);
+    }
+  });
 }
 
 async function handleManualOrderSubmit(side: 'BUY' | 'SELL'): Promise<void> {

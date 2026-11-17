@@ -598,6 +598,92 @@ export async function loginUser(credentials: { username: string; password: strin
   return data;
 }
 
+export async function oauthSocialLogin(provider: string, email: string, name?: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/auth/oauth/social-login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider, email, name }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'OAuth login failed' }));
+    throw new Error(err.detail || 'OAuth login failed');
+  }
+  const data = await res.json();
+  setAuthToken(data.access_token);
+  return data;
+}
+
+export async function exportTradeBlotterReport(): Promise<{ url: string; filename: string; count: number }> {
+  const res = await fetch(`${API_BASE}/storage/export-blotter`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to export trade blotter to Neon Object Storage');
+  return res.json();
+}
+
+export async function exportBacktestReport(backtestData: any): Promise<{ url: string; filename: string }> {
+  const res = await fetch(`${API_BASE}/storage/export-backtest`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(backtestData),
+  });
+  if (!res.ok) throw new Error('Failed to export backtest to Neon Object Storage');
+  return res.json();
+}
+
+export async function exportPayoffReport(payoffData: any): Promise<{ url: string; filename: string }> {
+  const res = await fetch(`${API_BASE}/storage/export-payoff`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payoffData),
+  });
+  if (!res.ok) throw new Error('Failed to export payoff matrix to Neon Object Storage');
+  return res.json();
+}
+
+export async function fetchStorageReports(): Promise<any[]> {
+  const res = await fetch(`${API_BASE}/storage/reports`, { headers: getAuthHeaders() });
+  return res.json();
+}
+
+export function subscribeNeonRealtime(onData: (data: any) => void): () => void {
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${wsProtocol}//${window.location.host}/api/ws/realtime`;
+  let socket: WebSocket | null = null;
+  let isClosed = false;
+
+  function connect() {
+    if (isClosed) return;
+    try {
+      socket = new WebSocket(wsUrl);
+      socket.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          onData(payload);
+        } catch (e) {
+          console.warn('Realtime JSON parse error', e);
+        }
+      };
+      socket.onerror = () => {
+        if (socket) socket.close();
+      };
+      socket.onclose = () => {
+        if (!isClosed) setTimeout(connect, 4000);
+      };
+    } catch (e) {
+      console.warn('WebSocket connection attempt failed', e);
+    }
+  }
+
+  connect();
+
+  return () => {
+    isClosed = true;
+    if (socket) socket.close();
+  };
+}
+
 export async function registerUser(userData: {
   username: string;
   email: string;

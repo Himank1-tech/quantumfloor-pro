@@ -31,3 +31,23 @@ services:
         value: "1000000.0"
       - key: DEFAULT_USD_CAPITAL
         value: "25000.0"
+      - key: BETTER_AUTH_SECRET
+        sync: false
+      - key: BETTER_AUTH_URL
+        value: "https://quantumfloor-pro.onrender.com"
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_ENDPOINT_URL
+        value: "https://br-proud-breeze-azco8vlo.storage.c-3.ap-southeast-1.aws.neon.tech"
+      - key: AWS_ENDPOINT_URL_S3
+        value: "https://br-proud-breeze-azco8vlo.storage.c-3.ap-southeast-1.aws.neon.tech"
+      - key: AWS_REGION
+        value: "ap-southeast-1"
+      - key: NEON_STORAGE_BUCKET
+        value: "quantumfloor-reports"
+      - key: NEON_REALTIME_URL
+        value: "wss://ep-snowy-art-az4tj0ze.rt.c-3.ap-southeast-1.aws.neon.tech/"
+      - key: NEON_REALTIME_SECRET
+        sync: false

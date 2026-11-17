@@ -41,6 +41,7 @@ import {
   fetchVaultKeys,
   fetchAuditLogs,
   subscribeTelemetry,
+  subscribeNeonRealtime,
 } from './api';
 
 let lastRenderedView: MainViewTab | null = null;
@@ -252,6 +253,17 @@ async function bootstrap() {
       console.warn('Telemetry stream reconnecting...', err);
     }
   );
+
+  // Subscribe to Neon Realtime Stream for Instant Blotter & Debate Feeds
+  subscribeNeonRealtime((data) => {
+    if (data.event === 'TRADE_FILL' && data.trade) {
+      store.trades = [data.trade, ...store.trades.slice(0, 19)];
+      if (store.activeMainView === 'FLOOR') renderDashboard();
+    } else if (data.event === 'DEBATE_UPDATE' && data.debate) {
+      store.debates = [data.debate, ...store.debates.slice(0, 14)];
+      if (store.activeMainView === 'ADVISORY' || store.activeMainView === 'FLOOR') renderDashboard();
+    }
+  });
 
   // Periodic Telemetry Poll (every 3 seconds) for accounts & background updates
   setInterval(async () => {

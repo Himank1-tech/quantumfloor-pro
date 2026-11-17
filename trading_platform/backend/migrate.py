@@ -6,6 +6,8 @@ runs table creation DDL, verifies table existence, and tests read/write queries.
 
 import os
 import sys
+from dotenv import load_dotenv
+load_dotenv()
 from sqlalchemy import text
 from trading_platform.backend.database import Database
 
@@ -44,20 +46,26 @@ def run_migration_verification():
         "equity_snapshots",
         "agent_debates",
         "risk_events",
+        # Better Auth production tables
+        "user",
+        "session",
+        "account",
+        "verification",
     ]
 
     print("\nVerifying production tables:")
     with db.engine.connect() as conn:
         for tbl in required_tables:
             try:
-                res = conn.execute(text(f"SELECT COUNT(*) as cnt FROM {tbl}")).mappings().fetchone()
+                # Use quotes around tbl name to handle reserved words like "user"
+                res = conn.execute(text(f'SELECT COUNT(*) as cnt FROM "{tbl}"')).mappings().fetchone()
                 cnt = res["cnt"] if res else 0
                 print(f"  ✓ {tbl.ljust(20)} [OK] (rows: {cnt})")
             except Exception as e:
                 print(f"  ✗ {tbl.ljust(20)} [FAIL]: {e}")
                 sys.exit(1)
 
-    print("\n✅ ALL 15 PRODUCTION TABLES VERIFIED AND FULLY OPERATIONAL!")
+    print("\n✅ ALL 19 PRODUCTION TABLES VERIFIED AND FULLY OPERATIONAL!")
     print("=" * 60)
 
 if __name__ == "__main__":

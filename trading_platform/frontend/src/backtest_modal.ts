@@ -4,7 +4,7 @@
  * executing simulated MTF trades, and outputting complete Tear-Sheet analytics.
  */
 
-import { runBacktest, fetchReplayStep, BacktestReport, SimulatedTrade } from './api';
+import { runBacktest, fetchReplayStep, exportBacktestReport, BacktestReport, SimulatedTrade } from './api';
 
 export class BacktestModal {
   private container: HTMLElement;
@@ -79,6 +79,9 @@ export class BacktestModal {
             <button class="primary-btn btn-run-bt" id="btn-run-strategy">
               🚀 Run Full Backtest
             </button>
+            <button class="btn-toggle" id="btn-export-backtest-s3" style="width:100%; margin-top:8px; font-size:10px; border-color:var(--color-cyan); color:var(--color-cyan); justify-content:center;">
+              ☁️ Export Tear-Sheet to Neon Storage
+            </button>
           </div>
         </div>
 
@@ -117,6 +120,20 @@ export class BacktestModal {
 
   private attachEvents() {
     this.container.querySelector('#btn-run-strategy')?.addEventListener('click', () => this.executeBacktest());
+
+    this.container.querySelector('#btn-export-backtest-s3')?.addEventListener('click', async () => {
+      if (!this.currentReport) {
+        alert('Please run a backtest first before exporting.');
+        return;
+      }
+      try {
+        const res = await exportBacktestReport(this.currentReport);
+        alert(`Backtest Tear-Sheet saved to Neon Object Storage!\nFile: ${res.filename}\n\nPresigned URL generated (valid 24h). Opening download...`);
+        window.open(res.url, '_blank');
+      } catch (err: any) {
+        alert(`Export Failed: ${err.message}`);
+      }
+    });
 
     this.container.querySelector('#btn-replay-play')?.addEventListener('click', () => this.startReplay());
     this.container.querySelector('#btn-replay-pause')?.addEventListener('click', () => this.pauseReplay());
