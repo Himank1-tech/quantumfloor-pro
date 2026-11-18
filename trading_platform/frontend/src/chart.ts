@@ -31,35 +31,58 @@ export class PriceChartEngine {
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => this.resize());
+      ro.observe(container);
+    }
+
+    const handlePoint = (clientX: number, clientY: number) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const pLeft = rect.width < 500 ? 6 : 14;
+      const pRight = rect.width < 500 ? 54 : 82;
+      const chartW = rect.width - pLeft - pRight;
+
+      if (x >= pLeft && x <= pLeft + chartW && this.candles.length > 0) {
+        const step = chartW / this.candles.length;
+        const idx = Math.floor((x - pLeft) / step);
+        this.hoverIndex = Math.max(0, Math.min(this.candles.length - 1, idx));
+        this.hoverMouseY = y;
+        this.render();
+      } else {
+        this.hoverIndex = null;
+        this.hoverMouseY = null;
+        this.render();
+      }
+    };
 
     // Mouse hover handler
-    this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+    this.canvas.addEventListener('mousemove', (e) => handlePoint(e.clientX, e.clientY));
     this.canvas.addEventListener('mouseleave', () => {
       this.hoverIndex = null;
       this.hoverMouseY = null;
       this.render();
     });
-  }
 
-  private handleMouseMove(e: MouseEvent): void {
-    const rect = this.canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const pLeft = 14;
-    const pRight = 82;
-    const chartW = rect.width - pLeft - pRight;
+    // Touch handlers for mobile / tablet
+    this.canvas.addEventListener('touchstart', (e) => {
+      if (e.touches && e.touches.length > 0) {
+        handlePoint(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
 
-    if (x >= pLeft && x <= pLeft + chartW && this.candles.length > 0) {
-      const step = chartW / this.candles.length;
-      const idx = Math.floor((x - pLeft) / step);
-      this.hoverIndex = Math.max(0, Math.min(this.candles.length - 1, idx));
-      this.hoverMouseY = y;
-      this.render();
-    } else {
+    this.canvas.addEventListener('touchmove', (e) => {
+      if (e.touches && e.touches.length > 0) {
+        handlePoint(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
+
+    this.canvas.addEventListener('touchend', () => {
       this.hoverIndex = null;
       this.hoverMouseY = null;
       this.render();
-    }
+    });
   }
 
   public setSMCData(smc: SMCAnalysisReport | null, mtf: MTFSetupReport | null): void {
@@ -91,11 +114,11 @@ export class PriceChartEngine {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, width, height);
 
-    // Spacious chart padding (82px right margin for non-overlapping SMC and price tags)
+    // Spacious chart padding (responsive right margin for non-overlapping SMC and price tags)
     const pTop = 22;
     const pBottom = 28;
-    const pLeft = 14;
-    const pRight = 82;
+    const pLeft = width < 500 ? 6 : 14;
+    const pRight = width < 500 ? 54 : 82;
 
     const chartW = width - pLeft - pRight;
     const chartH = height - pTop - pBottom;
@@ -313,6 +336,10 @@ export class EquityCurveChartEngine {
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => this.resize());
+      ro.observe(container);
+    }
   }
 
   public resize(): void {

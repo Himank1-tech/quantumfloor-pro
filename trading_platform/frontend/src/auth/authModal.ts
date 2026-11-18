@@ -33,7 +33,7 @@ export function renderSecurityPanel(): string {
       </div>
 
       <!-- Top Profile & Mode Grid -->
-      <div class="quant-grid" style="grid-template-columns: 1.5fr 1fr; margin-bottom:16px;">
+      <div class="quant-grid security-profile-grid" style="margin-bottom:16px;">
         <!-- User Profile Card -->
         <div class="quant-badge" style="padding:12px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -83,30 +83,32 @@ export function renderSecurityPanel(): string {
           </button>
         </div>
 
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Broker Integration</th>
-              <th>API Key (Masked)</th>
-              <th>Secret Hash</th>
-              <th>Environment</th>
-              <th>Status</th>
-              <th>Last Synced</th>
-            </tr>
-          </thead>
-          <tbody id="vault-keys-body">
-            ${keys.map((k) => `
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
               <tr>
-                <td><strong>${k.broker_name}</strong></td>
-                <td><code>${k.api_key_masked}</code></td>
-                <td><code>${k.secret_masked}</code></td>
-                <td><span class="brand-badge">${k.environment}</span></td>
-                <td><span class="val-green">● Connected</span></td>
-                <td style="color:var(--text-dim)">${k.updated_at.substring(0, 16).replace('T', ' ')}</td>
+                <th>Broker Integration</th>
+                <th>API Key (Masked)</th>
+                <th>Secret Hash</th>
+                <th>Environment</th>
+                <th>Status</th>
+                <th>Last Synced</th>
               </tr>
-            `).join('')}
-          </tbody>
-        </table>
+            </thead>
+            <tbody id="vault-keys-body">
+              ${keys.map((k) => `
+                <tr>
+                  <td><strong>${k.broker_name}</strong></td>
+                  <td><code>${k.api_key_masked}</code></td>
+                  <td><code>${k.secret_masked}</code></td>
+                  <td><span class="brand-badge">${k.environment}</span></td>
+                  <td><span class="val-green">● Connected</span></td>
+                  <td style="color:var(--text-dim)">${k.updated_at.substring(0, 16).replace('T', ' ')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Immutable Security Audit Trail -->
@@ -116,32 +118,34 @@ export function renderSecurityPanel(): string {
           <span style="font-size:10px; color:var(--text-dim)">Verifiable transaction and governance activity logged with timestamp and origin IP.</span>
         </div>
 
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Log ID</th>
-              <th>Timestamp</th>
-              <th>User</th>
-              <th>Action</th>
-              <th>Resource</th>
-              <th>Status</th>
-              <th>IP Address</th>
-            </tr>
-          </thead>
-          <tbody id="audit-logs-body">
-            ${logs.slice(0, 15).map((l) => `
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
               <tr>
-                <td><code>${l.log_id}</code></td>
-                <td style="color:var(--text-dim)">${l.timestamp.substring(11, 19)}</td>
-                <td><strong>${l.username}</strong></td>
-                <td><span class="val-cyan">${l.action}</span></td>
-                <td>${l.resource}</td>
-                <td><span class="${l.status === 'SUCCESS' ? 'val-green' : 'val-red'}">${l.status}</span></td>
-                <td style="color:var(--text-dim)">${l.ip_address}</td>
+                <th>Log ID</th>
+                <th>Timestamp</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Resource</th>
+                <th>Status</th>
+                <th>IP Address</th>
               </tr>
-            `).join('')}
-          </tbody>
-        </table>
+            </thead>
+            <tbody id="audit-logs-body">
+              ${logs.slice(0, 15).map((l) => `
+                <tr>
+                  <td><code>${l.log_id}</code></td>
+                  <td style="color:var(--text-dim)">${l.timestamp.substring(11, 19)}</td>
+                  <td><strong>${l.username}</strong></td>
+                  <td><span class="val-cyan">${l.action}</span></td>
+                  <td>${l.resource}</td>
+                  <td><span class="${l.status === 'SUCCESS' ? 'val-green' : 'val-red'}">${l.status}</span></td>
+                  <td style="color:var(--text-dim)">${l.ip_address}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Add Key Modal -->

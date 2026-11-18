@@ -239,42 +239,44 @@ function renderAnalysisModal(modal: HTMLElement, rep: IPOIntelligenceReport): vo
 
       <!-- Listed Peers Valuation Comparison -->
       <h4 style="margin-bottom:8px; font-size:12px; text-transform:uppercase; color:var(--text-dim)">Valuation Multiples vs Listed Peers</h4>
-      <table class="data-table" style="margin-bottom:14px;">
-        <thead>
-          <tr>
-            <th>Company</th>
-            <th>Ticker</th>
-            <th>P/E Ratio</th>
-            <th>P/B Ratio</th>
-            <th>RoE %</th>
-            <th>Market Cap</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr style="background:var(--bg-card-hover)">
-            <td><strong>${rep.company_name} (IPO)</strong></td>
-            <td><strong>${rep.symbol}</strong></td>
-            <td class="val-cyan">${rep.post_issue_pe > 0 ? rep.post_issue_pe.toFixed(1) + 'x' : 'Negative'}</td>
-            <td>--</td>
-            <td>${rep.roe_pct}%</td>
-            <td>Issue</td>
-          </tr>
-          ${rep.listed_peers
-            .map(
-              (p) => `
+      <div class="table-responsive" style="margin-bottom:14px;">
+        <table class="data-table">
+          <thead>
             <tr>
-              <td>${p.company_name}</td>
-              <td>${p.symbol}</td>
-              <td>${p.pe_ratio.toFixed(1)}x</td>
-              <td>${p.pb_ratio.toFixed(1)}x</td>
-              <td>${p.roe_pct}%</td>
-              <td>₹${(p.market_cap_cr / 1000).toFixed(1)}k Cr</td>
+              <th>Company</th>
+              <th>Ticker</th>
+              <th>P/E Ratio</th>
+              <th>P/B Ratio</th>
+              <th>RoE %</th>
+              <th>Market Cap</th>
             </tr>
-          `
-            )
-            .join('')}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            <tr style="background:var(--bg-card-hover)">
+              <td><strong>${rep.company_name} (IPO)</strong></td>
+              <td><strong>${rep.symbol}</strong></td>
+              <td class="val-cyan">${rep.post_issue_pe > 0 ? rep.post_issue_pe.toFixed(1) + 'x' : 'Negative'}</td>
+              <td>--</td>
+              <td>${rep.roe_pct}%</td>
+              <td>Issue</td>
+            </tr>
+            ${rep.listed_peers
+              .map(
+                (p) => `
+              <tr>
+                <td>${p.company_name}</td>
+                <td>${p.symbol}</td>
+                <td>${p.pe_ratio.toFixed(1)}x</td>
+                <td>${p.pb_ratio.toFixed(1)}x</td>
+                <td>${p.roe_pct}%</td>
+                <td>₹${(p.market_cap_cr / 1000).toFixed(1)}k Cr</td>
+              </tr>
+            `
+              )
+              .join('')}
+          </tbody>
+        </table>
+      </div>
 
       <!-- Strengths and Risks -->
       <div class="debate-columns" style="margin-bottom:14px;">
