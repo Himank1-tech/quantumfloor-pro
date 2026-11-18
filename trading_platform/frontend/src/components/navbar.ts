@@ -239,6 +239,63 @@ export function renderNavbar(): string {
   `;
 }
 
+export function updateNavbarState(): void {
+  const v = store.activeMainView;
+  const isNSE = store.activeTab === 'INDIAN_EQUITY';
+  const u = store.currentUser;
+
+  // Update Active Navigation Buttons (Desktop, Drawer & Bottom Bar)
+  document.querySelectorAll('.nav-tab-item, .mobile-nav-item, .bottom-bar-item[data-view]').forEach((btn) => {
+    const view = btn.getAttribute('data-view');
+    if (view === v) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  // Update Market Switcher Segments
+  const nseBtns = [document.getElementById('nav-switch-nse'), document.getElementById('mobile-switch-nse')];
+  const forexBtns = [document.getElementById('nav-switch-forex'), document.getElementById('mobile-switch-forex')];
+
+  nseBtns.forEach((btn) => (isNSE ? btn?.classList.add('active') : btn?.classList.remove('active')));
+  forexBtns.forEach((btn) => (!isNSE ? btn?.classList.add('active') : btn?.classList.remove('active')));
+
+  // Update User Profile Badge
+  const userChip = document.getElementById('btn-nav-user');
+  if (userChip && u) {
+    const avatar = userChip.querySelector('.user-avatar-circle') as HTMLElement;
+    const name = userChip.querySelector('.user-name') as HTMLElement;
+    const role = userChip.querySelector('.user-role-badge') as HTMLElement;
+    if (avatar) {
+      avatar.innerText = (u.username || 'AD').substring(0, 2).toUpperCase();
+      if (u.email?.includes('@gmail.com')) {
+        avatar.style.background = '#EA4335';
+      }
+    }
+    if (name) name.innerText = u.username || 'admin';
+    if (role) role.innerText = u.email || u.role || 'ADMIN';
+  }
+
+  // Update Drawer User Profile
+  const drawerUserCard = document.getElementById('mobile-btn-user');
+  if (drawerUserCard && u) {
+    const drawerAvatar = drawerUserCard.querySelector('.user-avatar-circle') as HTMLElement;
+    const drawerName = drawerUserCard.querySelector('.drawer-username') as HTMLElement;
+    const drawerEmail = drawerUserCard.querySelector('.drawer-useremail') as HTMLElement;
+    const drawerRole = drawerUserCard.querySelector('.drawer-role-badge') as HTMLElement;
+    if (drawerAvatar) {
+      drawerAvatar.innerText = (u.username || 'AD').substring(0, 2).toUpperCase();
+      if (u.email?.includes('@gmail.com')) {
+        drawerAvatar.style.background = '#EA4335';
+      }
+    }
+    if (drawerName) drawerName.innerText = u.username || 'admin';
+    if (drawerEmail) drawerEmail.innerText = u.email || 'admin@quantumfloor.institutional';
+    if (drawerRole) drawerRole.innerText = u.role || 'ADMIN';
+  }
+}
+
 export function setupNavbarEventListeners(): void {
   // Mobile drawer controls
   const backdrop = document.getElementById('mobile-nav-backdrop');

@@ -4,7 +4,7 @@
  */
 
 import './styles.css';
-import { renderNavbar, setupNavbarEventListeners, setNavbarActions } from './components/navbar';
+import { renderNavbar, setupNavbarEventListeners, setNavbarActions, updateNavbarState } from './components/navbar';
 import {
   renderFloorPanel,
   setupFloorEventListeners,
@@ -110,8 +110,12 @@ function renderApp() {
 
   // Update Single Top Navbar
   if (navContainer) {
-    navContainer.innerHTML = renderNavbar();
-    setupNavbarEventListeners();
+    if (!navContainer.hasChildNodes()) {
+      navContainer.innerHTML = renderNavbar();
+      setupNavbarEventListeners();
+    } else {
+      updateNavbarState();
+    }
   }
 
   // Update AI Co-Pilot Context
