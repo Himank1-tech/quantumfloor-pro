@@ -23,6 +23,8 @@
 *.mkv
 *.mov
 *.flv
+*.mp3
+media_output/
 
 # Frontend dependencies & production build outputs
 node_modules/

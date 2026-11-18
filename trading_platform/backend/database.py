@@ -968,3 +968,35 @@ class Database:
                     item["allocated_shares"] = json.loads(item.pop("allocated_shares_json"))
                 results.append(item)
             return results
+
+    def record_ipo_application(self, record: Dict[str, Any]) -> None:
+        params = {
+            "aid": record.get("application_id"),
+            "uid": record.get("user_id"),
+            "sym": record.get("ipo_symbol"),
+            "cname": record.get("company_name", ""),
+            "lot": int(record.get("lot_size", 1)),
+            "price": float(record.get("bid_price", 0.0)),
+            "amt": float(record.get("total_amount", 0.0)),
+            "upi": record.get("upi_id", ""),
+            "stat": record.get("status", "APPLIED"),
+            "ts": record.get("applied_at", datetime.datetime.now(datetime.timezone.utc).isoformat()),
+        }
+        with self.engine.begin() as conn:
+            conn.execute(
+                text("""
+                    INSERT INTO ipo_applications (application_id, user_id, ipo_symbol, company_name, lot_size, bid_price, total_amount, upi_id, status, applied_at)
+                    VALUES (:aid, :uid, :sym, :cname, :lot, :price, :amt, :upi, :stat, :ts)
+                """),
+                params
+            )
+
+    def get_ipo_applications(self, user_id: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
+        with self.engine.connect() as conn:
+            if user_id:
+                query = text("SELECT * FROM ipo_applications WHERE user_id = :uid ORDER BY applied_at DESC LIMIT :lim")
+                rows = conn.execute(query, {"uid": user_id, "lim": limit}).mappings().fetchall()
+            else:
+                query = text("SELECT * FROM ipo_applications ORDER BY applied_at DESC LIMIT :lim")
+                rows = conn.execute(query, {"lim": limit}).mappings().fetchall()
+            return [dict(r) for r in rows]

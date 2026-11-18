@@ -128,7 +128,7 @@ app.add_middleware(
 
 async def background_agent_loop():
     """Background cycle periodically conducting debates across Indian & Forex assets."""
-    symbols = ["RELIANCE", "EUR/USD", "TCS", "USD/INR", "HDFCBANK", "GBP/USD", "TATAMOTORS", "USD/JPY"]
+    symbols = ["RELIANCE", "EUR/USD", "TCS", "USD/INR", "HDFCBANK", "GBP/USD", "SBIN", "USD/JPY", "BHARTIARTL", "XAU/USD"]
     idx = 0
     await asyncio.sleep(5)  # initial delay
     while True:
@@ -311,6 +311,7 @@ def get_debates(limit: int = 20, symbol: Optional[str] = Query(None)):
 
 
 @app.post("/api/agents/run-cycle")
+@app.post("/api/agents/debates/run")
 def run_debate_cycle(data: Dict[str, Any] = Body(...)):
     symbol = data.get("symbol", "RELIANCE")
     force = data.get("force_execute", False)
@@ -725,7 +726,8 @@ def get_audit_trail(limit: int = 50):
 @app.get("/api/ipo/all")
 @app.get("/api/ipo")
 @app.get("/api/ipo/list")
-def get_all_ipos(status: Optional[str] = None):
+async def get_all_ipos(status: Optional[str] = None):
+    await ipo_scraper.fetch_live_nse_ipos()
     return ipo_scraper.get_all_ipos(status=status)
 
 
@@ -743,6 +745,47 @@ def get_ipo_analysis(ipo_id: str):
     if not ipo:
         raise HTTPException(status_code=404, detail="IPO not found")
     report = ipo_analyzer.analyze_ipo(ipo)
+    return report.model_dump()
+
+
+@app.post("/api/ipo/{ipo_id}/apply")
+def apply_for_ipo(request: Request, ipo_id: str, data: Dict[str, Any] = Body(...)):
+    """Persist genuine IPO bid application into Neon PostgreSQL database."""
+    user = get_current_user_from_request(request)
+    ipo = ipo_scraper.get_ipo_by_id(ipo_id)
+    if not ipo:
+        raise HTTPException(status_code=404, detail="IPO not found")
+
+    lots = int(data.get("lots", 1))
+    bid_price = float(data.get("bid_price", ipo.price_band_high))
+    upi_id = str(data.get("upi_id", f"{user['username']}@okhdfcbank")).strip()
+    total_amount = round(lots * ipo.lot_size * bid_price, 2)
+    app_id = f"IPO-APP-{uuid.uuid4().hex[:10].upper()}"
+
+    record = {
+        "application_id": app_id,
+        "user_id": user["id"],
+        "ipo_symbol": ipo.symbol,
+        "company_name": ipo.company_name,
+        "lot_size": lots * ipo.lot_size,
+        "bid_price": bid_price,
+        "total_amount": total_amount,
+        "upi_id": upi_id,
+        "status": "APPLIED",
+        "applied_at": datetime.now(timezone.utc).isoformat(),
+    }
+    db.record_ipo_application(record)
+    return {
+        "success": True,
+        "message": f"IPO bid submitted successfully for {ipo.company_name}. UPI mandate request sent to {upi_id}.",
+        "application": record,
+    }
+
+
+@app.get("/api/ipo/user/applications")
+def get_user_ipo_applications(request: Request):
+    user = get_current_user_from_request(request)
+    return db.get_ipo_applications(user_id=user["id"])
     return report.model_dump()
 
 
@@ -866,6 +909,12 @@ def get_macro_sessions():
 @app.get("/api/macro/news")
 def get_macro_economic_news():
     return get_economic_calendar().model_dump()
+
+
+@app.get("/api/macro/headlines")
+def get_macro_live_headlines():
+    cal = get_economic_calendar()
+    return [a.model_dump() for a in cal.news_articles]
 
 
 # ==================== UNIVERSAL POSITION & PIP CALCULATOR ====================

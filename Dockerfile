@@ -54,7 +54,10 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     bcrypt \
     python-dotenv \
     boto3 \
-    pyotp
+    pyotp \
+    yfinance \
+    feedparser \
+    google-genai
 
 # Copy backend source code
 COPY trading_platform/ /app/trading_platform/

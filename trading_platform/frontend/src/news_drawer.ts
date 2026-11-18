@@ -8,7 +8,7 @@ import { fetchEconomicNews, CalendarReport, EconomicEvent } from './api';
 
 export class NewsDrawer {
   private overlay: HTMLElement;
-  private currentFilter: 'ALL' | 'HIGH_RED' | 'MEDIUM_ORANGE' | 'LOW_YELLOW' = 'ALL';
+  private currentFilter: 'ALL' | 'HIGH_RED' | 'MEDIUM_ORANGE' | 'LOW_YELLOW' | 'LIVE_NEWS' = 'ALL';
   private calendarData: CalendarReport | null = null;
 
   constructor() {
@@ -99,49 +99,72 @@ export class NewsDrawer {
         <button class="filter-tab yellow-tab ${this.currentFilter === 'LOW_YELLOW' ? 'active' : ''}" data-filter="LOW_YELLOW">
           🟡 Low Impact (${data.events.filter(e => e.impact === 'LOW_YELLOW').length})
         </button>
+        <button class="filter-tab cyan-tab ${this.currentFilter === 'LIVE_NEWS' ? 'active' : ''}" data-filter="LIVE_NEWS">
+          📰 Live Wire (${(data.news_articles || []).length})
+        </button>
       </div>
 
-      <!-- Events List -->
+      <!-- Events or Live News List -->
       <div class="news-events-grid">
-        ${filtered.map(evt => {
-          const impactClass = evt.impact === 'HIGH_RED' ? 'impact-red' : (evt.impact === 'MEDIUM_ORANGE' ? 'impact-orange' : 'impact-yellow');
-          const timeBadge = evt.minutes_away > 0 
-            ? `In ${Math.floor(evt.minutes_away / 60)}h ${evt.minutes_away % 60}m` 
-            : `${Math.abs(evt.minutes_away)}m ago`;
-
-          return `
-            <div class="news-event-card ${impactClass} ${evt.is_imminent ? 'imminent-card' : ''}">
-              <div class="event-header-row">
-                <span class="impact-indicator"></span>
-                <span class="currency-tag tag-${evt.currency.toLowerCase()}">${evt.currency}</span>
-                <span class="event-name">${evt.event_name}</span>
-                <span class="event-time-badge">${timeBadge}</span>
-              </div>
-
-              <div class="event-schedule-row">
-                <span class="sched-ist">⏰ ${evt.scheduled_ist}</span>
-                <span class="sched-utc">🌐 ${evt.scheduled_utc}</span>
-              </div>
-
-              <div class="event-metrics-row">
-                <div class="metric-col">
-                  <span class="metric-lbl">Forecast</span>
-                  <span class="metric-val">${evt.forecast}</span>
+        ${this.currentFilter === 'LIVE_NEWS' ? (
+          (data.news_articles || []).map(art => {
+            const sentClass = art.sentiment === 'BULLISH' ? 'text-green' : (art.sentiment === 'BEARISH' ? 'text-red' : 'text-dim');
+            return `
+              <div class="news-event-card">
+                <div class="event-header-row">
+                  <span class="currency-tag tag-usd">${art.source.split(' ')[0]}</span>
+                  <a href="${art.link}" target="_blank" rel="noopener noreferrer" class="event-name font-bold hover:underline" style="color:var(--color-cyan)">${art.title}</a>
+                  <span class="event-time-badge ${sentClass}">${art.sentiment}</span>
                 </div>
-                <div class="metric-col">
-                  <span class="metric-lbl">Previous</span>
-                  <span class="metric-val">${evt.previous}</span>
+                <div class="event-schedule-row">
+                  <span class="sched-ist">Published: ${art.published}</span>
+                  <span class="sched-utc">Tickers: ${(art.affected_tickers || []).join(', ')}</span>
                 </div>
-                <div class="metric-col">
-                  <span class="metric-lbl">Actual</span>
-                  <span class="metric-val ${evt.actual ? 'actual-printed' : 'pending'}">${evt.actual || 'Pending'}</span>
-                </div>
+                <div class="event-desc-row mt-2 text-dim text-xs">${art.summary}</div>
               </div>
+            `;
+          }).join('')
+        ) : (
+          filtered.map(evt => {
+            const impactClass = evt.impact === 'HIGH_RED' ? 'impact-red' : (evt.impact === 'MEDIUM_ORANGE' ? 'impact-orange' : 'impact-yellow');
+            const timeBadge = evt.minutes_away > 0 
+              ? `In ${Math.floor(evt.minutes_away / 60)}h ${evt.minutes_away % 60}m` 
+              : `${Math.abs(evt.minutes_away)}m ago`;
 
-              <div class="event-desc-row">${evt.description}</div>
-            </div>
-          `;
-        }).join('')}
+            return `
+              <div class="news-event-card ${impactClass} ${evt.is_imminent ? 'imminent-card' : ''}">
+                <div class="event-header-row">
+                  <span class="impact-indicator"></span>
+                  <span class="currency-tag tag-${evt.currency.toLowerCase()}">${evt.currency}</span>
+                  <span class="event-name">${evt.event_name}</span>
+                  <span class="event-time-badge">${timeBadge}</span>
+                </div>
+
+                <div class="event-schedule-row">
+                  <span class="sched-ist">⏰ ${evt.scheduled_ist}</span>
+                  <span class="sched-utc">🌐 ${evt.scheduled_utc}</span>
+                </div>
+
+                <div class="event-metrics-row">
+                  <div class="metric-col">
+                    <span class="metric-lbl">Forecast</span>
+                    <span class="metric-val">${evt.forecast}</span>
+                  </div>
+                  <div class="metric-col">
+                    <span class="metric-lbl">Previous</span>
+                    <span class="metric-val">${evt.previous}</span>
+                  </div>
+                  <div class="metric-col">
+                    <span class="metric-lbl">Actual</span>
+                    <span class="metric-val ${evt.actual ? 'actual-printed' : 'pending'}">${evt.actual || 'Pending'}</span>
+                  </div>
+                </div>
+
+                <div class="event-desc-row">${evt.description}</div>
+              </div>
+            `;
+          }).join('')
+        )}
       </div>
     `;
 

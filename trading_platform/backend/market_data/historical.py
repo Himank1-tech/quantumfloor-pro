@@ -12,7 +12,7 @@ import math
 import random
 from pydantic import BaseModel, Field
 
-from .live_feed import SYMBOL_MAPPINGS
+from .live_feed import SYMBOL_MAPPINGS, SYMBOL_ALIASES
 
 logger = logging.getLogger("market_data.historical")
 
@@ -43,21 +43,26 @@ TIMEFRAME_CONFIG = {
 
 class HistoricalCandleLoader:
     """
-    Retrieves and caches multi-timeframe OHLCV candles.
+    Retrieves and caches multi-timeframe OHLCV candles with a 60-second TTL.
     """
 
     def __init__(self):
         self._candle_cache: Dict[str, List[Candle]] = {}
+        self._cache_ts: Dict[str, float] = {}
 
     async def get_candles(self, symbol: str, timeframe: str = "15M", limit: int = 100) -> List[Candle]:
         """
         Fetch OHLCV candles for given symbol and timeframe ('4H', '1H', '15M', '5M', '1D').
+        Enforces 60-second TTL cache for real-time responsiveness.
         """
         tf = timeframe.upper().strip()
         if tf not in TIMEFRAME_CONFIG:
             tf = "15M"
 
         clean_sym = symbol.strip().upper()
+        if clean_sym in SYMBOL_ALIASES:
+            clean_sym = SYMBOL_ALIASES[clean_sym]
+
         meta = SYMBOL_MAPPINGS.get(clean_sym)
         if not meta:
             for k, v in SYMBOL_MAPPINGS.items():
@@ -67,7 +72,11 @@ class HistoricalCandleLoader:
                     break
 
         cache_key = f"{clean_sym}_{tf}_{limit}"
-        if cache_key in self._candle_cache and len(self._candle_cache[cache_key]) >= min(limit, 30):
+        now_ts = asyncio.get_event_loop().time()
+        last_ts = self._cache_ts.get(cache_key, 0.0)
+
+        # 60s TTL cache check
+        if (now_ts - last_ts < 60.0) and cache_key in self._candle_cache and len(self._candle_cache[cache_key]) >= min(limit, 30):
             return self._candle_cache[cache_key]
 
         yf_ticker = meta["yf"] if meta else f"{clean_sym}.NS"
@@ -78,10 +87,16 @@ class HistoricalCandleLoader:
         if HAS_YFINANCE:
             try:
                 loop = asyncio.get_event_loop()
-                ticker = await loop.run_in_executor(None, yf.Ticker, yf_ticker)
-                hist = await loop.run_in_executor(
-                    None,
-                    lambda: ticker.history(period=cfg["yf_period"], interval=cfg["yf_interval"])
+                ticker = await asyncio.wait_for(
+                    loop.run_in_executor(None, yf.Ticker, yf_ticker),
+                    timeout=5.0
+                )
+                hist = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        None,
+                        lambda: ticker.history(period=cfg["yf_period"], interval=cfg["yf_interval"])
+                    ),
+                    timeout=6.0
                 )
 
                 if not hist.empty:
@@ -113,6 +128,7 @@ class HistoricalCandleLoader:
 
                     if len(candles) >= 20:
                         self._candle_cache[cache_key] = candles
+                        self._cache_ts[cache_key] = now_ts
                         return candles
             except Exception as e:
                 logger.debug(f"yfinance candles for {clean_sym} fallback to synthetic geometry: {e}")
@@ -120,6 +136,7 @@ class HistoricalCandleLoader:
         # Resilient high-fidelity synthetic market geometry matching real price scale
         candles = self._generate_synthetic_candles(clean_sym, meta, tf, limit)
         self._candle_cache[cache_key] = candles
+        self._cache_ts[cache_key] = now_ts
         return candles
 
     def _generate_synthetic_candles(

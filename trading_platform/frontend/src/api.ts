@@ -535,6 +535,23 @@ export async function fetchIPOAnalysis(ipoId: string): Promise<IPOIntelligenceRe
   return res.json();
 }
 
+export async function applyForIPO(ipoId: string, data: { lots: number; bid_price?: number; upi_id: string }): Promise<any> {
+  const token = localStorage.getItem('access_token');
+  const res = await fetch(`${API_BASE}/ipo/${encodeURIComponent(ipoId)}/apply`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'IPO application failed' }));
+    throw new Error(err.detail || 'IPO application failed');
+  }
+  return res.json();
+}
+
 export async function fetchAdvisorySignals(symbol?: string, horizon?: string): Promise<GroundedAdviceSignal[]> {
   let url = `${API_BASE}/advisory/signals`;
   const params: string[] = [];
@@ -1025,6 +1042,18 @@ export interface EconomicEvent {
   description: string;
 }
 
+export interface NewsArticle {
+  id: string;
+  title: string;
+  link: string;
+  published: string;
+  source: string;
+  summary: string;
+  affected_tickers: string[];
+  sentiment: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  sentiment_score: number;
+}
+
 export interface CalendarReport {
   timestamp_utc: string;
   timestamp_ist: string;
@@ -1032,6 +1061,7 @@ export interface CalendarReport {
   warning_message?: string;
   next_high_impact_event?: EconomicEvent;
   events: EconomicEvent[];
+  news_articles?: NewsArticle[];
 }
 
 export interface PositionCalculationResult {

@@ -66,6 +66,9 @@ class FloorManager:
         self.is_auto_trading_enabled: bool = True
 
         self.gemini_client = None
+        self._init_gemini_client()
+
+    def _init_gemini_client(self):
         gemini_key = os.environ.get("GEMINI_API_KEY")
         if HAS_GENAI and gemini_key:
             try:
@@ -242,12 +245,21 @@ class FloorManager:
             rr_ratio = 2.0
             rationale = f"Consensus NEUTRAL (Score {consensus_score:+.2f}). Bull and Bear forces balanced. Quantitative mandate requires preserving capital on sidelines."
 
-        # Optional Gemini Generative Synthesis
+        # Genuine Gemini Generative Multi-Agent Synthesis
+        if not self.gemini_client:
+            self._init_gemini_client()
+
         if self.gemini_client:
             try:
+                latest_headline = news.get("headline", "") or "Steady macroeconomic sentiment across Indian and global markets."
                 gen_prompt = (
-                    f"Symbol: {symbol} ({asset_class}), Price: {current_price}, RSI-14: {rsi:.1f}, "
-                    f"Order Book Skew: {imbalance * 100:+.1f}%, Action: {action}. Provide a 1-sentence institutional CIO rationale."
+                    f"You are the CIO of QuantumFloor Pro. Synthesize the multi-agent debate for {symbol} ({asset_class}):\n"
+                    f"- Live Price: {current_price}\n"
+                    f"- RSI-14: {rsi:.1f}, 20 EMA: {ema20:.2f}, 50 EMA: {ema50:.2f}, MACD Hist: {macd_hist:+.4f}\n"
+                    f"- Order Book Imbalance: {imbalance * 100:+.1f}%\n"
+                    f"- Macro Context: {latest_headline}\n"
+                    f"- Consensus Action: {action} (Confidence: {confidence_pct:.1f}%)\n"
+                    f"Provide exactly 1 concise, authoritative institutional CIO consensus sentence."
                 )
                 res = self.gemini_client.models.generate_content(
                     model="gemini-2.5-flash",
@@ -255,8 +267,8 @@ class FloorManager:
                 )
                 if res.text:
                     rationale = f"{rationale} [Gemini CIO Insight: {res.text.strip()}]"
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Gemini debate synthesis fallback: {e}")
 
         # Estimate proposed quantity
         nav = portfolio.get("total_nav_inr", 3_000_000.0) if asset_class == "INDIAN_EQUITY" else portfolio.get("usd_equity", 25_000.0)

@@ -8,6 +8,8 @@ from typing import Dict, List, Any, Optional
 import datetime
 import math
 import numpy as np
+from ..market_data.live_feed import live_market_feed, SYMBOL_MAPPINGS, SYMBOL_ALIASES
+from ..market_data.historical import historical_candle_loader
 
 
 class TradingMCPServer:
@@ -97,16 +99,30 @@ class TradingMCPServer:
             return {"error": f"Unknown tool: {tool_name}"}
 
     def get_live_quote(self, symbol: str) -> Dict[str, Any]:
-        symbol = symbol.upper()
+        clean_sym = symbol.strip().upper()
+        if clean_sym in SYMBOL_ALIASES:
+            clean_sym = SYMBOL_ALIASES[clean_sym]
+
+        if clean_sym in live_market_feed.cache:
+            q = live_market_feed.cache[clean_sym]
+            return {
+                "symbol": clean_sym,
+                "bid": q.bid,
+                "ask": q.ask,
+                "last_price": q.price,
+                "change_pct": q.change_pct,
+                "volume": q.volume,
+                "timestamp": q.timestamp,
+            }
+
         if self.market and hasattr(self.market, "get_quote"):
-            quote = self.market.get_quote(symbol)
+            quote = self.market.get_quote(clean_sym)
             if quote:
                 return quote if isinstance(quote, dict) else quote.model_dump()
 
-        # Sensible defaults for standalone mode
-        base_price = 2850.0 if "RELIANCE" in symbol else (1.0850 if "EUR" in symbol else 84.15)
+        base_price = 2850.0 if "RELIANCE" in clean_sym else (1.0850 if "EUR" in clean_sym else 84.15)
         return {
-            "symbol": symbol,
+            "symbol": clean_sym,
             "bid": round(base_price * 0.9998, 4),
             "ask": round(base_price * 1.0002, 4),
             "last_price": base_price,

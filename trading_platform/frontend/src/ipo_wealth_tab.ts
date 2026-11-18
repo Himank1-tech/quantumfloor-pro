@@ -14,6 +14,7 @@ import {
   fetchSIPProjections,
   SIPCalculationResult,
   investInBasket,
+  applyForIPO,
 } from './api';
 
 export class IPOWealthTab {
@@ -142,9 +143,12 @@ export class IPOWealthTab {
                     </div>
                   </div>
 
-                  <div class="ipo-actions-row">
-                    <button class="btn-drhp-modal" data-id="${ipo.ipo_id}">
-                      🔍 Deep-Dive DRHP Analysis
+                  <div class="ipo-actions-row flex gap-2">
+                    <button class="btn-drhp-modal flex-1" data-id="${ipo.ipo_id}">
+                      🔍 DRHP
+                    </button>
+                    <button class="btn-ipo-apply flex-1" data-id="${ipo.ipo_id}" data-name="${ipo.company_name}" data-price="${ipo.price_band_high}" data-lot="${ipo.lot_size}">
+                      ⚡ Bid via UPI
                     </button>
                   </div>
                 </div>
@@ -307,6 +311,18 @@ export class IPOWealthTab {
         const target = e.currentTarget as HTMLElement;
         const id = target.dataset.id;
         if (id) await this.openDRHPModal(id);
+      });
+    });
+
+    // Apply for IPO buttons
+    this.container.querySelectorAll('.btn-ipo-apply').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const target = e.currentTarget as HTMLElement;
+        const id = target.dataset.id || '';
+        const name = target.dataset.name || 'IPO';
+        const price = parseFloat(target.dataset.price || '100');
+        const lot = parseInt(target.dataset.lot || '1', 10);
+        this.openApplyModal(id, name, price, lot);
       });
     });
 
@@ -508,6 +524,83 @@ export class IPOWealthTab {
         modalContainer.querySelector('#btn-success-close')?.addEventListener('click', () => modalContainer.innerHTML = '');
       } catch (e: any) {
         alert(`SIP execution failed: ${e.message}`);
+      }
+    });
+  }
+
+  private openApplyModal(ipoId: string, companyName: string, price: number, lotSize: number) {
+    const modalContainer = this.container.querySelector('#drhp-modal-container');
+    if (!modalContainer) return;
+
+    modalContainer.innerHTML = `
+      <div class="modal-backdrop">
+        <div class="modal-card confirm-modal-card">
+          <div class="modal-header">
+            <h3>⚡ Apply for ${companyName}</h3>
+            <button class="modal-close-btn" id="apply-close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p class="text-sm text-dim mb-4">Submit institutional retail bid via ASBA UPI 2.0 block mandate.</p>
+            <div class="mb-3">
+              <label class="text-xs text-dim block mb-1">Bid Cut-Off Price (₹)</label>
+              <input type="number" id="ipo-bid-price" value="${price}" class="w-full p-2 bg-dark rounded border border-border-dim text-sm text-main" readonly />
+            </div>
+            <div class="mb-3">
+              <label class="text-xs text-dim block mb-1">Lots (1 Lot = ${lotSize} Shares)</label>
+              <select id="ipo-lots" class="w-full p-2 bg-dark rounded border border-border-dim text-sm text-main">
+                <option value="1">1 Lot (${lotSize} Shares - ₹${(lotSize * price).toLocaleString()})</option>
+                <option value="2">2 Lots (${lotSize * 2} Shares - ₹${(lotSize * 2 * price).toLocaleString()})</option>
+                <option value="5">5 Lots (${lotSize * 5} Shares - ₹${(lotSize * 5 * price).toLocaleString()})</option>
+                <option value="10">10 Lots (${lotSize * 10} Shares - ₹${(lotSize * 10 * price).toLocaleString()})</option>
+              </select>
+            </div>
+            <div class="mb-4">
+              <label class="text-xs text-dim block mb-1">UPI ID (Google Pay / PhonePe / BHIM)</label>
+              <input type="text" id="ipo-upi" value="trader@okhdfcbank" class="w-full p-2 bg-dark rounded border border-border-dim text-sm text-main" />
+            </div>
+            <div class="flex gap-3 mt-6">
+              <button class="primary-btn flex-1" id="btn-submit-ipo-bid">Submit ASBA Bid</button>
+              <button class="secondary-btn" id="btn-cancel-ipo-bid">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    modalContainer.querySelector('#apply-close')?.addEventListener('click', () => modalContainer.innerHTML = '');
+    modalContainer.querySelector('#btn-cancel-ipo-bid')?.addEventListener('click', () => modalContainer.innerHTML = '');
+    modalContainer.querySelector('#btn-submit-ipo-bid')?.addEventListener('click', async () => {
+      const lots = parseInt((modalContainer.querySelector('#ipo-lots') as HTMLSelectElement)?.value || '1', 10);
+      const upiId = (modalContainer.querySelector('#ipo-upi') as HTMLInputElement)?.value || 'trader@okhdfcbank';
+      const submitBtn = modalContainer.querySelector('#btn-submit-ipo-bid') as HTMLButtonElement;
+      if (submitBtn) submitBtn.textContent = 'Submitting to Neon DB & Exchange...';
+
+      try {
+        const res = await applyForIPO(ipoId, { lots, bid_price: price, upi_id: upiId });
+        modalContainer.innerHTML = `
+          <div class="modal-backdrop">
+            <div class="modal-card confirm-modal-card">
+              <div class="modal-header">
+                <h3>✅ IPO Bid Submitted!</h3>
+                <button class="modal-close-btn" id="bid-success-close">&times;</button>
+              </div>
+              <div class="modal-body">
+                <p class="text-green font-bold mb-2">${res.message}</p>
+                <div class="p-3 bg-card-dark rounded border border-border-dim text-xs font-mono mb-4">
+                  Application ID: ${res.application?.application_id || 'IPO-CONFIRMED'}<br/>
+                  Total Amount Blocked: ₹${res.application?.total_amount?.toLocaleString()}<br/>
+                  Status: ${res.application?.status}
+                </div>
+                <button class="primary-btn w-full" id="btn-bid-done">Done</button>
+              </div>
+            </div>
+          </div>
+        `;
+        modalContainer.querySelector('#bid-success-close')?.addEventListener('click', () => modalContainer.innerHTML = '');
+        modalContainer.querySelector('#btn-bid-done')?.addEventListener('click', () => modalContainer.innerHTML = '');
+      } catch (err: any) {
+        alert(`IPO Bid submission failed: ${err.message}`);
+        modalContainer.innerHTML = '';
       }
     });
   }
