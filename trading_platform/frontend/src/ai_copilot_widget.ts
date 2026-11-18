@@ -13,7 +13,7 @@ export class AICopilotWidget {
   private isListening: boolean = false;
   private recognition: any = null;
   private activeSymbol: string = 'RELIANCE';
-  private currentPrice: number = 2840.0;
+  private currentPrice: number = 1363.0;
   private activeBlueprint: any = null;
 
   constructor() {

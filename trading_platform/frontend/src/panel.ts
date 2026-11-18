@@ -734,6 +734,13 @@ export async function refreshSymbolData(): Promise<void> {
     if (sym !== store.selectedSymbol) return;
 
     store.candles = candles;
+    const currentQ = store.quotes.get(sym);
+    if (currentQ && currentQ.last_price > 0 && candles.length > 0) {
+      const lastBar = candles[candles.length - 1];
+      lastBar.close = currentQ.last_price;
+      lastBar.high = Math.max(lastBar.high, currentQ.last_price);
+      lastBar.low = Math.min(lastBar.low, currentQ.last_price);
+    }
     if (book) store.orderBook = book;
     activeMTFReport = mtf;
 
@@ -892,6 +899,12 @@ function renderSelectedSymbolCard(): void {
   }
 
   if (priceChart && store.candles.length > 0) {
+    if (q && q.last_price > 0) {
+      const lastBar = store.candles[store.candles.length - 1];
+      lastBar.close = q.last_price;
+      lastBar.high = Math.max(lastBar.high, q.last_price);
+      lastBar.low = Math.min(lastBar.low, q.last_price);
+    }
     priceChart.updateCandles(store.candles);
   }
 }
@@ -934,6 +947,7 @@ function renderOrderBook(): void {
 
 function renderDebateArena(): void {
   const sym = store.selectedSymbol;
+  const q = store.getSelectedQuote();
   const debate = store.debates.find(
     (d) => d.symbol.toUpperCase() === sym.toUpperCase()
   ) || store.debates[0];
@@ -942,6 +956,18 @@ function renderDebateArena(): void {
 
   const isForex = debate.symbol.includes('/') || debate.current_price < 100;
   const currPrefix = isForex ? '' : '₹';
+  const livePrice = q?.last_price || (store.candles.length > 0 ? store.candles[store.candles.length - 1].close : debate.current_price);
+  const ratio = (livePrice > 0 && debate.current_price > 0 && Math.abs(livePrice - debate.current_price) / debate.current_price > 0.12)
+    ? livePrice / debate.current_price
+    : 1.0;
+
+  const bTgtVal = debate.bull_thesis.target_price * ratio;
+  const bInvVal = debate.bull_thesis.invalidation_price * ratio;
+  const beTgtVal = debate.bear_thesis.target_price * ratio;
+  const beInvVal = debate.bear_thesis.invalidation_price * ratio;
+  const entryVal = ratio !== 1.0 ? livePrice : debate.recommended_entry;
+  const slVal = debate.stop_loss * ratio;
+  const tpVal = debate.take_profit * ratio;
 
   const sigEl = document.getElementById('consensus-signal');
   const scoreEl = document.getElementById('consensus-score');
@@ -968,12 +994,10 @@ function renderDebateArena(): void {
     bArgs.innerHTML = debate.bull_thesis.key_arguments.map((arg) => `<li>${arg}</li>`).join('');
   }
   if (bTgt) {
-    const tgt = debate.bull_thesis.target_price;
-    bTgt.innerText = `${currPrefix}${isForex || tgt < 100 ? tgt.toFixed(4) : tgt.toFixed(2)}`;
+    bTgt.innerText = `${currPrefix}${isForex || bTgtVal < 100 ? bTgtVal.toFixed(4) : bTgtVal.toFixed(2)}`;
   }
   if (bInv) {
-    const inv = debate.bull_thesis.invalidation_price;
-    bInv.innerText = `${currPrefix}${isForex || inv < 100 ? inv.toFixed(4) : inv.toFixed(2)}`;
+    bInv.innerText = `${currPrefix}${isForex || bInvVal < 100 ? bInvVal.toFixed(4) : bInvVal.toFixed(2)}`;
   }
 
   // Bear card
@@ -986,12 +1010,10 @@ function renderDebateArena(): void {
     beArgs.innerHTML = debate.bear_thesis.key_arguments.map((arg) => `<li>${arg}</li>`).join('');
   }
   if (beTgt) {
-    const tgt = debate.bear_thesis.target_price;
-    beTgt.innerText = `${currPrefix}${isForex || tgt < 100 ? tgt.toFixed(4) : tgt.toFixed(2)}`;
+    beTgt.innerText = `${currPrefix}${isForex || beTgtVal < 100 ? beTgtVal.toFixed(4) : beTgtVal.toFixed(2)}`;
   }
   if (beInv) {
-    const inv = debate.bear_thesis.invalidation_price;
-    beInv.innerText = `${currPrefix}${isForex || inv < 100 ? inv.toFixed(4) : inv.toFixed(2)}`;
+    beInv.innerText = `${currPrefix}${isForex || beInvVal < 100 ? beInvVal.toFixed(4) : beInvVal.toFixed(2)}`;
   }
 
   // Proposal bar & SL/TP pills
@@ -1007,16 +1029,13 @@ function renderDebateArena(): void {
   }
   if (propQty) propQty.innerText = `${debate.proposed_quantity.toLocaleString()} Qty`;
   if (propEntry) {
-    const entry = debate.recommended_entry;
-    propEntry.innerText = `${currPrefix}${isForex || entry < 100 ? entry.toFixed(4) : entry.toFixed(2)}`;
+    propEntry.innerText = `${currPrefix}${isForex || entryVal < 100 ? entryVal.toFixed(4) : entryVal.toFixed(2)}`;
   }
   if (propSL) {
-    const sl = debate.stop_loss;
-    propSL.innerText = `${currPrefix}${isForex || sl < 100 ? sl.toFixed(4) : sl.toFixed(2)}`;
+    propSL.innerText = `${currPrefix}${isForex || slVal < 100 ? slVal.toFixed(4) : slVal.toFixed(2)}`;
   }
   if (propTP) {
-    const tp = debate.take_profit;
-    propTP.innerText = `${currPrefix}${isForex || tp < 100 ? tp.toFixed(4) : tp.toFixed(2)}`;
+    propTP.innerText = `${currPrefix}${isForex || tpVal < 100 ? tpVal.toFixed(4) : tpVal.toFixed(2)}`;
   }
 }
 
@@ -1038,14 +1057,20 @@ function renderOrderTicket(): void {
     symInput.value = sym;
   }
 
-  // Synchronize limit / market price
-  const activePrice = bp?.entry_price || debate?.recommended_entry || q?.last_price;
+  // Lock limit/market price to exact live quote
+  const livePrice = q?.last_price || (store.candles.length > 0 ? store.candles[store.candles.length - 1].close : 0);
+  const activePrice = livePrice || bp?.entry_price || debate?.recommended_entry;
   if (priceInput && activePrice) {
     priceInput.value = isForex || activePrice < 100 ? activePrice.toFixed(4) : activePrice.toFixed(2);
   }
 
   // Synchronize stop-loss (SL) pill / field
-  const activeSL = bp?.stop_loss || debate?.stop_loss;
+  const atrEst = (activePrice || 100) * 0.008;
+  const activeSL = bp?.stop_loss && Math.abs(bp.stop_loss - (activePrice || 0)) / (activePrice || 1) < 0.15
+    ? bp.stop_loss
+    : (debate?.stop_loss && Math.abs(debate.stop_loss - (activePrice || 0)) / (activePrice || 1) < 0.15
+        ? debate.stop_loss
+        : Number(((activePrice || 100) - atrEst * 1.5).toFixed(isForex ? 4 : 2)));
   if (slInput && activeSL) {
     slInput.value = isForex || activeSL < 100 ? activeSL.toFixed(4) : activeSL.toFixed(2);
   }

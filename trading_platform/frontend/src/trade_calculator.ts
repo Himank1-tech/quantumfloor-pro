@@ -23,7 +23,7 @@ export class TradeCalculatorModal {
     });
   }
 
-  public open(blueprint?: TradeBlueprint, currentSymbol: string = 'RELIANCE', currentPrice: number = 2840) {
+  public open(blueprint?: TradeBlueprint, currentSymbol: string = 'RELIANCE', currentPrice: number = 1363.0) {
     this.activeBlueprint = blueprint || null;
     this.overlay.classList.remove('hidden');
     this.renderForm(currentSymbol, currentPrice);
@@ -161,9 +161,9 @@ export class TradeCalculatorModal {
     const assetClass = (this.overlay.querySelector('#calc-asset-class') as HTMLSelectElement)?.value || 'INDIAN_EQUITY';
     const bal = parseFloat((this.overlay.querySelector('#calc-balance') as HTMLInputElement)?.value || '100000');
     const risk = parseFloat((this.overlay.querySelector('#calc-risk') as HTMLInputElement)?.value || '1.0');
-    const entry = parseFloat((this.overlay.querySelector('#calc-entry') as HTMLInputElement)?.value || '2840');
-    const sl = parseFloat((this.overlay.querySelector('#calc-sl') as HTMLInputElement)?.value || '2815');
-    const tp = parseFloat((this.overlay.querySelector('#calc-tp') as HTMLInputElement)?.value || '2895');
+    const entry = parseFloat((this.overlay.querySelector('#calc-entry') as HTMLInputElement)?.value || '1363.0');
+    const sl = parseFloat((this.overlay.querySelector('#calc-sl') as HTMLInputElement)?.value || '1350.0');
+    const tp = parseFloat((this.overlay.querySelector('#calc-tp') as HTMLInputElement)?.value || '1390.0');
     const lev = parseFloat((this.overlay.querySelector('#calc-leverage') as HTMLSelectElement)?.value || '100');
 
     const resContainer = this.overlay.querySelector('#calc-results-container');

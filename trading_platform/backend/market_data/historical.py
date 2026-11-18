@@ -127,6 +127,16 @@ class HistoricalCandleLoader:
                         candles.append(c)
 
                     if len(candles) >= 20:
+                        try:
+                            from .live_feed import live_market_feed
+                            if clean_sym in live_market_feed.cache:
+                                live_q = live_market_feed.cache[clean_sym]
+                                if live_q.price > 0:
+                                    candles[-1].close = round(float(live_q.price), 4)
+                                    candles[-1].high = max(candles[-1].high, candles[-1].close)
+                                    candles[-1].low = min(candles[-1].low, candles[-1].close)
+                        except Exception:
+                            pass
                         self._candle_cache[cache_key] = candles
                         self._cache_ts[cache_key] = now_ts
                         return candles
@@ -135,6 +145,16 @@ class HistoricalCandleLoader:
 
         # Resilient high-fidelity synthetic market geometry matching real price scale
         candles = self._generate_synthetic_candles(clean_sym, meta, tf, limit)
+        try:
+            from .live_feed import live_market_feed
+            if clean_sym in live_market_feed.cache and candles:
+                live_q = live_market_feed.cache[clean_sym]
+                if live_q.price > 0:
+                    candles[-1].close = round(float(live_q.price), 4)
+                    candles[-1].high = max(candles[-1].high, candles[-1].close)
+                    candles[-1].low = min(candles[-1].low, candles[-1].close)
+        except Exception:
+            pass
         self._candle_cache[cache_key] = candles
         self._cache_ts[cache_key] = now_ts
         return candles

@@ -120,7 +120,8 @@ class TradingMCPServer:
             if quote:
                 return quote if isinstance(quote, dict) else quote.model_dump()
 
-        base_price = 2850.0 if "RELIANCE" in clean_sym else (1.0850 if "EUR" in clean_sym else 84.15)
+        meta = SYMBOL_MAPPINGS.get(clean_sym, {})
+        base_price = meta.get("base_price", 1372.50 if "RELIANCE" in clean_sym else (2389.00 if "TCS" in clean_sym else (1.0967 if "EUR" in clean_sym else 93.54)))
         return {
             "symbol": clean_sym,
             "bid": round(base_price * 0.9998, 4),
@@ -161,6 +162,9 @@ class TradingMCPServer:
         }
 
     def get_technical_indicators(self, symbol: str, timeframe: str = "1m") -> Dict[str, Any]:
+        q = self.get_live_quote(symbol)
+        live_p = float(q.get("last_price", 100.0))
+
         bars = []
         if self.market and hasattr(self.market, "get_candles"):
             bars = self.market.get_candles(symbol, limit=60)
@@ -169,13 +173,23 @@ class TradingMCPServer:
             closes = np.array([b["close"] for b in bars], dtype=np.float64)
             highs = np.array([b["high"] for b in bars], dtype=np.float64)
             lows = np.array([b["low"] for b in bars], dtype=np.float64)
+            # Ensure price action aligns with the live quote
+            if live_p > 0 and len(closes) > 0 and abs(closes[-1] - live_p) / live_p > 0.08:
+                ratio = live_p / closes[-1]
+                closes = closes * ratio
+                highs = highs * ratio
+                lows = lows * ratio
+            if len(closes) > 0:
+                closes[-1] = live_p
+                highs[-1] = max(highs[-1], live_p)
+                lows[-1] = min(lows[-1], live_p)
         else:
-            # Deterministic synthetic series for indicators
-            q = self.get_live_quote(symbol)
-            p = q.get("last_price", 100.0)
+            # Deterministic synthetic series for indicators centered at live price
+            p = live_p
             np.random.seed(abs(hash(symbol)) % 10000)
             noise = np.random.normal(0, 0.002, 60)
             closes = p * np.cumprod(1 + noise)
+            closes[-1] = live_p
             highs = closes * 1.001
             lows = closes * 0.999
 

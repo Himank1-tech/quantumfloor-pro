@@ -81,7 +81,7 @@ function renderApp() {
 
     const openCalculatorAction = () => {
       const q = store.quotes.get(store.selectedSymbol);
-      tradeCalculator?.open(activeMTFReport?.blueprint, store.selectedSymbol, q?.last_price || 2840.0);
+      tradeCalculator?.open(activeMTFReport?.blueprint, store.selectedSymbol, q?.last_price || 1363.0);
     };
 
     const openCopilotAction = () => {
@@ -229,6 +229,14 @@ async function bootstrap() {
     store.trades = trades;
     store.riskStatus = risk;
     store.candles = candles;
+    // Align initial last candle close with the live quote
+    const currInitQuote = quotes.find((q) => q.symbol === store.selectedSymbol);
+    if (currInitQuote && store.candles.length > 0 && currInitQuote.last_price > 0) {
+      const lastBar = store.candles[store.candles.length - 1];
+      lastBar.close = currInitQuote.last_price;
+      lastBar.high = Math.max(lastBar.high, currInitQuote.last_price);
+      lastBar.low = Math.min(lastBar.low, currInitQuote.last_price);
+    }
     store.orderBook = orderbook;
     store.ipos = ipos;
     store.advisorySignals = advisory;
@@ -258,11 +266,13 @@ async function bootstrap() {
     (quotes) => {
       store.setQuotes(quotes);
       const curr = quotes.find((q) => q.symbol === store.selectedSymbol);
-      if (curr && store.candles.length > 0) {
+      if (curr && store.candles.length > 0 && curr.last_price > 0) {
         const lastBar = store.candles[store.candles.length - 1];
-        lastBar.close = curr.last_price;
-        lastBar.high = Math.max(lastBar.high, curr.last_price);
-        lastBar.low = Math.min(lastBar.low, curr.last_price);
+        if (Math.abs(curr.last_price - lastBar.open) / (lastBar.open || 1) < 0.25) {
+          lastBar.close = curr.last_price;
+          lastBar.high = Math.max(lastBar.high, curr.last_price);
+          lastBar.low = Math.min(lastBar.low, curr.last_price);
+        }
       }
       if (store.activeMainView === 'FLOOR') {
         renderDashboard();
@@ -280,6 +290,28 @@ async function bootstrap() {
       console.warn('Telemetry stream reconnecting...', err);
     }
   );
+
+  // Dedicated 15-second live quotes polling loop to lock all UI components to real exchange feeds
+  setInterval(async () => {
+    try {
+      const quotes = await fetchQuotes();
+      if (quotes && quotes.length > 0) {
+        store.setQuotes(quotes);
+        const curr = quotes.find((q) => q.symbol === store.selectedSymbol);
+        if (curr && store.candles.length > 0 && curr.last_price > 0) {
+          const lastBar = store.candles[store.candles.length - 1];
+          lastBar.close = curr.last_price;
+          lastBar.high = Math.max(lastBar.high, curr.last_price);
+          lastBar.low = Math.min(lastBar.low, curr.last_price);
+        }
+        if (store.activeMainView === 'FLOOR') {
+          renderDashboard();
+        }
+      }
+    } catch (e) {
+      console.warn('Quotes 15s poll error:', e);
+    }
+  }, 15000);
 
   // Subscribe to Neon Realtime Stream for Instant Blotter & Debate Feeds
   subscribeNeonRealtime((data) => {

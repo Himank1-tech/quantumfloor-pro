@@ -15,6 +15,7 @@ from .liquidity import detect_liquidity_and_poi, LiquidityPOIResult, OrderBlock,
 from .fibonacci import calculate_auto_fibonacci, FibLevels
 from .candlesticks import detect_candlestick_patterns, CandlePattern
 from ..market_data.historical import Candle, historical_candle_loader
+from ..market_data.live_feed import live_market_feed
 
 
 class TradeBlueprint(BaseModel):
@@ -59,7 +60,9 @@ async def synthesize_mtf_setup(symbol: str) -> MTFSetupReport:
     candles_15m = await historical_candle_loader.get_candles(symbol, timeframe="15M", limit=100)
     candles_5m = await historical_candle_loader.get_candles(symbol, timeframe="5M", limit=80)
 
-    cur_price = candles_5m[-1].close if candles_5m else (candles_15m[-1].close if candles_15m else 2840.0)
+    cached_live = live_market_feed.cache.get(symbol.upper())
+    fallback_price = cached_live.price if cached_live else (1372.50 if "RELIANCE" in symbol.upper() else 100.0)
+    cur_price = candles_5m[-1].close if candles_5m else (candles_15m[-1].close if candles_15m else fallback_price)
 
     # ==================== STEP 1: Higher Timeframe Bias (1H / 4H) ====================
     struct_1h = detect_market_structure(candles_1h, pivot_depth=3)

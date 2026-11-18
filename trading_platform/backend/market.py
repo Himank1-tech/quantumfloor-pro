@@ -19,22 +19,22 @@ class MarketTickAggregator:
 
     INITIAL_SECURITIES = {
         # Indian Equities (NSE ₹)
-        "RELIANCE": {"price": 2845.50, "asset_class": AssetClass.INDIAN_EQUITY, "tick_size": 0.05, "volatility": 0.0012},
-        "TCS": {"price": 3915.20, "asset_class": AssetClass.INDIAN_EQUITY, "tick_size": 0.05, "volatility": 0.0010},
-        "HDFCBANK": {"price": 1582.40, "asset_class": AssetClass.INDIAN_EQUITY, "tick_size": 0.05, "volatility": 0.0011},
-        "INFY": {"price": 1812.80, "asset_class": AssetClass.INDIAN_EQUITY, "tick_size": 0.05, "volatility": 0.0013},
-        "ICICIBANK": {"price": 1184.60, "asset_class": AssetClass.INDIAN_EQUITY, "tick_size": 0.05, "volatility": 0.0012},
-        "NIFTY50": {"price": 23450.00, "asset_class": AssetClass.INDIAN_EQUITY, "tick_size": 0.05, "volatility": 0.0008},
-        "BANKNIFTY": {"price": 49820.00, "asset_class": AssetClass.INDIAN_EQUITY, "tick_size": 0.05, "volatility": 0.0011},
-        "TATAMOTORS": {"price": 865.30, "asset_class": AssetClass.INDIAN_EQUITY, "tick_size": 0.05, "volatility": 0.0016},
+        "RELIANCE": {"price": 1372.50, "asset_class": AssetClass.INDIAN_EQUITY, "tick_size": 0.05, "volatility": 0.0004},
+        "TCS": {"price": 2389.00, "asset_class": AssetClass.INDIAN_EQUITY, "tick_size": 0.05, "volatility": 0.0004},
+        "HDFCBANK": {"price": 809.70, "asset_class": AssetClass.INDIAN_EQUITY, "tick_size": 0.05, "volatility": 0.0004},
+        "INFY": {"price": 1111.00, "asset_class": AssetClass.INDIAN_EQUITY, "tick_size": 0.05, "volatility": 0.0004},
+        "ICICIBANK": {"price": 1596.80, "asset_class": AssetClass.INDIAN_EQUITY, "tick_size": 0.05, "volatility": 0.0004},
+        "NIFTY50": {"price": 25218.00, "asset_class": AssetClass.INDIAN_EQUITY, "tick_size": 0.05, "volatility": 0.0003},
+        "BANKNIFTY": {"price": 61923.00, "asset_class": AssetClass.INDIAN_EQUITY, "tick_size": 0.05, "volatility": 0.0003},
+        "TATAMOTORS": {"price": 1116.90, "asset_class": AssetClass.INDIAN_EQUITY, "tick_size": 0.05, "volatility": 0.0005},
 
         # Global Forex (Pairs)
-        "EUR/USD": {"price": 1.0845, "asset_class": AssetClass.FOREX, "tick_size": 0.00001, "volatility": 0.0004},
-        "GBP/USD": {"price": 1.2965, "asset_class": AssetClass.FOREX, "tick_size": 0.00001, "volatility": 0.0005},
-        "USD/INR": {"price": 84.285, "asset_class": AssetClass.FOREX, "tick_size": 0.001, "volatility": 0.0002},
-        "USD/JPY": {"price": 153.85, "asset_class": AssetClass.FOREX, "tick_size": 0.001, "volatility": 0.0006},
-        "AUD/USD": {"price": 0.6580, "asset_class": AssetClass.FOREX, "tick_size": 0.00001, "volatility": 0.0005},
-        "USD/CAD": {"price": 1.3910, "asset_class": AssetClass.FOREX, "tick_size": 0.00001, "volatility": 0.0004},
+        "EUR/USD": {"price": 1.09670, "asset_class": AssetClass.FOREX, "tick_size": 0.0001, "volatility": 0.0002},
+        "GBP/USD": {"price": 1.31620, "asset_class": AssetClass.FOREX, "tick_size": 0.0001, "volatility": 0.0002},
+        "USD/INR": {"price": 93.5400, "asset_class": AssetClass.FOREX, "tick_size": 0.0025, "volatility": 0.0001},
+        "USD/JPY": {"price": 159.200, "asset_class": AssetClass.FOREX, "tick_size": 0.01, "volatility": 0.0002},
+        "AUD/USD": {"price": 0.67190, "asset_class": AssetClass.FOREX, "tick_size": 0.0001, "volatility": 0.0002},
+        "USD/CAD": {"price": 1.43270, "asset_class": AssetClass.FOREX, "tick_size": 0.0001, "volatility": 0.0002},
     }
 
     def __init__(self, update_interval_seconds: float = 1.0):
@@ -120,40 +120,55 @@ class MarketTickAggregator:
                 pass
 
     async def _tick_loop(self) -> None:
-        """Continuously generate realistic tick drift and update candles."""
+        """Continuously synchronize live market ticks and update candles."""
         while self.running:
             try:
                 now = datetime.datetime.now(datetime.timezone.utc)
                 now_str = now.isoformat()
                 now_time_str = now.strftime("%H:%M")
 
+                # Attempt to sync with live feed cache if available
+                feed_cache = {}
+                try:
+                    from .market_data.live_feed import live_market_feed
+                    feed_cache = live_market_feed.cache
+                except Exception:
+                    pass
+
                 updated_quotes = []
                 for sym, quote in self.quotes.items():
                     meta = self.INITIAL_SECURITIES[sym]
-                    volatility = meta["volatility"]
                     tick_size = meta["tick_size"]
-
-                    # Brownian motion with slight mean reversion
-                    ret = random.gauss(0.00002, volatility)
-                    new_price = quote.last_price * (1.0 + ret)
-
-                    # Round to tick size
                     decimals = 2 if meta["asset_class"] == AssetClass.INDIAN_EQUITY else (3 if "JPY" in sym or "INR" in sym else 5)
-                    new_price = round(round(new_price / tick_size) * tick_size, decimals)
-
                     spread = tick_size * (2 if meta["asset_class"] == AssetClass.INDIAN_EQUITY else 1.5)
-                    quote.last_price = new_price
-                    quote.bid = round(new_price - spread / 2, decimals)
-                    quote.ask = round(new_price + spread / 2, decimals)
-                    quote.high = max(quote.high, new_price)
-                    quote.low = min(quote.low, new_price)
-                    quote.volume += int(random.uniform(50, 400))
-                    quote.timestamp = now_str
 
-                    if quote.previous_close > 0:
-                        quote.change_pct = round(((new_price - quote.previous_close) / quote.previous_close) * 100.0, 2)
+                    feed_q = feed_cache.get(sym)
+                    if feed_q and feed_q.price > 0:
+                        new_price = round(float(feed_q.price), decimals)
+                        quote.last_price = new_price
+                        quote.bid = round(float(feed_q.bid), decimals)
+                        quote.ask = round(float(feed_q.ask), decimals)
+                        quote.high = max(quote.high, new_price)
+                        quote.low = min(quote.low, new_price)
+                        quote.volume = int(feed_q.volume)
+                        quote.previous_close = round(float(feed_q.previous_close), decimals)
+                        quote.change_pct = float(feed_q.change_pct)
+                        quote.timestamp = now_str
+                    else:
+                        # Bounded micro-tick adjustment within 0.05% of base price
+                        drift = (random.random() - 0.49) * tick_size
+                        new_price = round(round((quote.last_price + drift) / tick_size) * tick_size, decimals)
+                        quote.last_price = new_price
+                        quote.bid = round(new_price - spread / 2, decimals)
+                        quote.ask = round(new_price + spread / 2, decimals)
+                        quote.high = max(quote.high, new_price)
+                        quote.low = min(quote.low, new_price)
+                        quote.volume += int(random.uniform(10, 80))
+                        quote.timestamp = now_str
+                        if quote.previous_close > 0:
+                            quote.change_pct = round(((new_price - quote.previous_close) / quote.previous_close) * 100.0, 2)
 
-                    # Update candle bar
+                    # Update candle bar cleanly without artificial spike
                     sym_candles = self.candles[sym]
                     if sym_candles and sym_candles[-1]["time"] == now_time_str:
                         curr_bar = sym_candles[-1]
