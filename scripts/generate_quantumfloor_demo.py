@@ -536,9 +536,9 @@ async def produce_full_video():
             )
 
             page = await context.new_page()
-            await page.goto(BASE_URL, wait_until="networkidle", timeout=30000)
-            await page.wait_for_selector("#app", timeout=15000)
-            await asyncio.sleep(2.0)
+            await page.goto(BASE_URL, wait_until="domcontentloaded", timeout=40000)
+            await page.wait_for_selector("#app", timeout=20000)
+            await asyncio.sleep(2.5)
 
             # Record the choreographed scene
             await record_scene_video(context, page, scene, scene_target_dur, "")
@@ -574,6 +574,13 @@ async def produce_full_video():
             subprocess.run(encode_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
             encoded_scene_videos.append(scene_final_mp4)
 
+            # Immediately delete raw capture webm directory to free disk space
+            try:
+                import shutil
+                shutil.rmtree(scene_rec_dir, ignore_errors=True)
+            except Exception:
+                pass
+
         await browser.close()
 
     # 4. Concatenate All 8 Scenes into Seamless Video
@@ -594,6 +601,14 @@ async def produce_full_video():
         temp_concat_mp4
     ]
     subprocess.run(concat_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+
+    # Immediately delete encoded scene files to free disk space before final mix
+    for vid in encoded_scene_videos:
+        try:
+            if os.path.exists(vid):
+                os.remove(vid)
+        except Exception:
+            pass
 
     # 5. Lossless Audio Mix with Ambient Synth Music (-28dB)
     print("\n🎛️ Audio Post-Production: Mixing Neural Voice + Ambient Synth Pad (-28dB)...")
