@@ -16,6 +16,7 @@ Records live https://quantumfloor-pro.onrender.com with strict visual quality gu
 
 import os
 import sys
+import json
 import asyncio
 import subprocess
 import re
@@ -216,15 +217,32 @@ async def generate_speech_tracks():
     scene_words = {}
 
     fallback_voices = [VOICE, "en-US-GuyNeural", "en-IN-PrabhatNeural", "en-US-ChristopherNeural"]
+    backoffs = [2.0, 4.0, 6.0, 10.0, 15.0, 20.0]
 
     for scene in SCENES:
         sid = scene["id"]
         raw_out_path = os.path.join(TEMP_DIR, f"{sid}_raw_voice.mp3")
         padded_out_path = os.path.join(TEMP_DIR, f"{sid}_voice.mp3")
+        words_json_path = os.path.join(TEMP_DIR, f"{sid}_words.json")
+
+        # Reuse cached audio and word boundaries if present
+        if os.path.exists(padded_out_path) and os.path.exists(words_json_path) and os.path.getsize(padded_out_path) > 10000:
+            try:
+                with open(words_json_path, "r", encoding="utf-8") as f:
+                    cached_words = json.load(f)
+                dur = parse_audio_duration(padded_out_path)
+                if dur and dur > 5.0 and len(cached_words) > 0:
+                    print(f"  - Reusing cached audio & word boundaries for {sid} ({scene['name']}): {dur:.2f}s ({len(cached_words)} words)")
+                    audio_files[sid] = padded_out_path
+                    durations[sid] = dur
+                    scene_words[sid] = cached_words
+                    continue
+            except Exception:
+                pass
 
         print(f"  - Generating voice & word boundaries for {sid} ({scene['name']})...")
         success = False
-        for attempt in range(4):
+        for attempt in range(len(backoffs)):
             voice_to_use = fallback_voices[attempt % len(fallback_voices)]
             try:
                 communicate = edge_tts.Communicate(scene["script"], voice_to_use, rate=RATE, boundary="WordBoundary")
@@ -259,6 +277,11 @@ async def generate_speech_tracks():
                     ]
                     subprocess.run(pad_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                     final_dur = parse_audio_duration(padded_out_path)
+
+                    # Save words json
+                    with open(words_json_path, "w", encoding="utf-8") as f:
+                        json.dump(words, f)
+
                     audio_files[sid] = padded_out_path
                     durations[sid] = final_dur
                     scene_words[sid] = words
@@ -266,11 +289,12 @@ async def generate_speech_tracks():
                     success = True
                     if os.path.exists(raw_out_path):
                         os.remove(raw_out_path)
-                    await asyncio.sleep(0.8)
+                    await asyncio.sleep(1.0)
                     break
             except Exception as e:
-                print(f"    Attempt {attempt+1} failed ({e}), retrying...")
-                await asyncio.sleep(2.0)
+                wait_sec = backoffs[attempt]
+                print(f"    Attempt {attempt+1}/{len(backoffs)} failed ({e}), retrying in {wait_sec:.1f}s...")
+                await asyncio.sleep(wait_sec)
 
         if not success:
             raise RuntimeError(f"Failed to generate TTS audio for {sid}")
