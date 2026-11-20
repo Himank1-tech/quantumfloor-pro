@@ -274,7 +274,7 @@ INJECT_UI_HELPERS_JS = """
     style.id = 'demo-crisp-styles';
     style.innerHTML = `
         html, body {
-            background-color: #070B14 !important;
+            background-color: #05070C !important;
             -webkit-font-smoothing: antialiased !important;
             -moz-osx-font-smoothing: grayscale !important;
             text-rendering: optimizeLegibility !important;
@@ -346,12 +346,12 @@ INJECT_UI_HELPERS_JS = """
     outroCard.style.flexDirection = 'column';
     outroCard.style.alignItems = 'center';
     outroCard.style.justifyContent = 'center';
-    outroCard.style.background = 'radial-gradient(circle at center, #0f172a 0%, #070B14 100%)';
+    outroCard.style.background = 'radial-gradient(circle at center, #0B111E 0%, #05070C 100%)';
     outroCard.style.color = '#ffffff';
     outroCard.style.fontFamily = 'Inter, -apple-system, BlinkMacSystemFont, sans-serif';
     outroCard.innerHTML = `
         <div style="display:flex; align-items:center; gap:14px; margin-bottom:16px;">
-            <div style="width:48px; height:48px; border-radius:12px; background:linear-gradient(135deg, #00f0ff, #6366f1); display:flex; align-items:center; justify-content:center; font-size:24px; box-shadow:0 0 30px rgba(0,240,255,0.4);">⚡</div>
+            <div style="width:48px; height:48px; border-radius:12px; background:linear-gradient(135deg, #00E5FF, #F59E0B); display:flex; align-items:center; justify-content:center; font-size:24px; box-shadow:0 0 30px rgba(0,229,255,0.45);">⚡</div>
             <h1 style="font-size:36px; font-weight:900; letter-spacing:1px; margin:0; background:linear-gradient(90deg, #ffffff, #94a3b8); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">QUANTUMFLOOR PRO</h1>
         </div>
         <div style="font-size:16px; font-weight:600; color:#00f0ff; letter-spacing:2px; text-transform:uppercase; margin-bottom:24px;">Autonomous Institutional Multi-Agent Trading Floor</div>
@@ -769,7 +769,7 @@ async def produce_full_video():
             )
 
             # Ensure background is dark before any content renders
-            await context.add_init_script("document.documentElement.style.backgroundColor = '#070B14'; if(document.body) document.body.style.backgroundColor = '#070B14';")
+            await context.add_init_script("document.documentElement.style.backgroundColor = '#05070C'; if(document.body) document.body.style.backgroundColor = '#05070C';")
 
             page = await context.new_page()
 
