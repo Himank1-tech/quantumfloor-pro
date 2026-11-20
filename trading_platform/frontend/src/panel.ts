@@ -46,58 +46,62 @@ export function renderFloorPanel(): string {
       <!-- 1. Executive Portfolio & Session Strip (5 Spacious KPI Cards) -->
       <section class="executive-kpi-strip">
         <!-- Card 1: Unified NAV -->
-        <div class="kpi-card">
+        <div class="kpi-card kpi-card-nav">
           <div class="kpi-card-header">
             <span class="kpi-label">UNIFIED PORTFOLIO NAV</span>
-            <span class="kpi-tag tag-cyan">LIVE</span>
+            <span class="kpi-tag badge-gold">LIVE</span>
           </div>
           <div class="kpi-value-row">
-            <span id="nav-inr" class="kpi-value-main val-cyan">₹--</span>
+            <span class="kpi-pulse-dot dot-gold pulse-emerald"></span>
+            <span id="nav-inr" class="kpi-value-main val-amber">₹--</span>
             <span id="nav-usd" class="kpi-value-sub">$--</span>
           </div>
           <div class="kpi-footer-note">Cross-broker consolidated cash + margin</div>
         </div>
 
         <!-- Card 2: Daily P&L -->
-        <div class="kpi-card">
+        <div class="kpi-card kpi-card-pnl" id="card-daily-pnl">
           <div class="kpi-card-header">
             <span class="kpi-label">TODAY'S NET P&L</span>
             <span class="kpi-tag tag-emerald">DAY 1</span>
           </div>
           <div class="kpi-value-row">
+            <span class="kpi-pulse-dot dot-emerald pulse-emerald" id="pnl-pulse-dot"></span>
             <span id="nav-daily-pnl" class="kpi-value-main val-green">--</span>
           </div>
           <div class="kpi-footer-note">Realized + Mark-to-Market Unrealized</div>
         </div>
 
         <!-- Card 3: Active Session & Killzone -->
-        <div class="kpi-card" id="kpi-card-session">
+        <div class="kpi-card kpi-card-session" id="kpi-card-session">
           <div class="kpi-card-header">
             <span class="kpi-label">SESSION & KILLZONE</span>
-            <span class="kpi-tag tag-emerald pulse-tag">ACTIVE</span>
+            <span class="kpi-tag tag-cyan pulse-tag">ACTIVE</span>
           </div>
           <div class="kpi-value-row">
-            <span id="kpi-session-title" class="kpi-value-main val-white" style="font-size:16px;">NSE Equities (IST)</span>
+            <span class="kpi-pulse-dot dot-cyan pulse-emerald"></span>
+            <span id="kpi-session-title" class="kpi-value-main val-cyan" style="font-size:1.35rem;">NSE Equities (IST)</span>
           </div>
           <div class="kpi-footer-note" id="kpi-session-killzone">Killzone: 09:15 - 11:30 IST · London Pre-Market</div>
         </div>
 
         <!-- Card 4: Next Red-Folder News -->
-        <div class="kpi-card kpi-card-interactive" id="kpi-card-news" title="Click to view full Economic Calendar">
+        <div class="kpi-card kpi-card-news kpi-card-interactive" id="kpi-card-news" title="Click to view full Economic Calendar">
           <div class="kpi-card-header">
             <span class="kpi-label">UPCOMING MACRO EVENT</span>
             <span class="kpi-tag tag-rose">HIGH IMPACT</span>
           </div>
           <div class="kpi-value-row">
-            <span id="kpi-next-news" class="kpi-value-main val-rose" style="font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            <span class="kpi-pulse-dot dot-crimson pulse-emerald"></span>
+            <span id="kpi-next-news" class="kpi-value-main val-rose" style="font-size:1.15rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
               ⚠️ US CPI Data (in 45m)
             </span>
           </div>
-          <div class="kpi-footer-note" style="color:var(--accent-indigo)">Click to inspect impact filters →</div>
+          <div class="kpi-footer-note" style="color:var(--color-cyan)">Click to inspect impact filters →</div>
         </div>
 
         <!-- Card 5: Risk Governor & Auto-Trade Control -->
-        <div class="kpi-card">
+        <div class="kpi-card kpi-card-governor">
           <div class="kpi-card-header">
             <span class="kpi-label">RISK GOVERNOR</span>
             <span id="circuit-breaker-pill" class="breaker-badge breaker-NORMAL">NORMAL</span>
@@ -281,6 +285,7 @@ export function renderFloorPanel(): string {
                     <span class="agent-title val-green">Bull Strategist</span>
                     <span id="bull-conviction" class="agent-conviction val-green">82.5%</span>
                   </div>
+                  <div class="bull-confidence-bar" id="bull-confidence-bar" style="width: 82.5%;"></div>
                   <ul id="bull-arguments" class="thesis-arguments-list">
                     <li>Price consolidating above 20 EMA dynamic support.</li>
                     <li>Order book bid volume dominance (+12.4% liquidity skew).</li>
@@ -298,6 +303,7 @@ export function renderFloorPanel(): string {
                     <span class="agent-title val-red">Bear Strategist</span>
                     <span id="bear-conviction" class="agent-conviction val-red">45.0%</span>
                   </div>
+                  <div class="bear-confidence-bar" id="bear-confidence-bar" style="width: 45.0%;"></div>
                   <ul id="bear-arguments" class="thesis-arguments-list">
                     <li>Testing resistance boundary near upper volatility band.</li>
                     <li>Overhead supply overhang capping immediate aggressive breakouts.</li>
@@ -368,6 +374,14 @@ export function renderFloorPanel(): string {
                     <label class="field-label">QUANTITY / LOTS</label>
                     <input type="number" id="ticket-qty" class="ticket-input" placeholder="Qty" value="10" min="1" step="any" required />
                   </div>
+                </div>
+
+                <div class="ticket-field" style="margin-top:2px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label class="field-label">ACCOUNT RISK CONTAINMENT</label>
+                    <span id="ticket-risk-val" style="font-family:var(--font-mono); font-size:11px; font-weight:800; color:var(--color-cyan);">1.00% (₹10,000)</span>
+                  </div>
+                  <input type="range" id="ticket-risk-slider" min="0.25" max="5.0" step="0.25" value="1.0" class="risk-range-slider" />
                 </div>
 
                 <div class="ticket-input-group">
@@ -632,6 +646,29 @@ function setupEventListeners(): void {
     }
   });
 
+  // Risk % Slider & Dynamic Quantity Calculator
+  const riskSlider = document.getElementById('ticket-risk-slider') as HTMLInputElement;
+  const riskVal = document.getElementById('ticket-risk-val');
+  if (riskSlider && riskVal) {
+    riskSlider.addEventListener('input', () => {
+      const pct = parseFloat(riskSlider.value);
+      const navInr = store.accountSummary?.total_nav_inr || 1000000;
+      const riskAmount = navInr * (pct / 100);
+      riskVal.innerText = `${pct.toFixed(2)}% (₹${Math.round(riskAmount).toLocaleString()})`;
+
+      const priceIn = document.getElementById('ticket-price') as HTMLInputElement;
+      const slIn = document.getElementById('ticket-sl') as HTMLInputElement;
+      const qtyIn = document.getElementById('ticket-qty') as HTMLInputElement;
+      const price = parseFloat(priceIn?.value || '0');
+      const sl = parseFloat(slIn?.value || '0');
+      if (price > 0 && sl > 0 && Math.abs(price - sl) > 0.0001 && qtyIn) {
+        const riskPerUnit = Math.abs(price - sl);
+        const computedQty = Math.max(1, Math.floor(riskAmount / riskPerUnit));
+        qtyIn.value = computedQty.toString();
+      }
+    });
+  }
+
   // Blotter & Order Book Tab Switching
   let activeBlotterView = 'POSITIONS';
   const tabPos = document.getElementById('tab-positions');
@@ -806,10 +843,19 @@ function renderHeaderMetrics(): void {
   if (navUsdEl) navUsdEl.innerText = `$${s.total_nav_usd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const pnlEl = document.getElementById('nav-daily-pnl');
+  const pnlCard = document.getElementById('card-daily-pnl');
+  const pnlDot = document.getElementById('pnl-pulse-dot');
   if (pnlEl) {
     const isUp = s.daily_pnl_pct >= 0;
     pnlEl.innerText = `${isUp ? '+' : ''}${s.daily_pnl_pct.toFixed(2)}% (₹${s.daily_pnl_inr.toLocaleString()})`;
     pnlEl.className = `kpi-value-main ${isUp ? 'val-green' : 'val-red'}`;
+    if (pnlCard) {
+      if (isUp) pnlCard.classList.remove('pnl-negative');
+      else pnlCard.classList.add('pnl-negative');
+    }
+    if (pnlDot) {
+      pnlDot.className = `kpi-pulse-dot ${isUp ? 'dot-emerald' : 'dot-crimson'} pulse-emerald`;
+    }
   }
 
   const pill = document.getElementById('circuit-breaker-pill');
@@ -986,10 +1032,12 @@ function renderDebateArena(): void {
 
   // Bull card
   const bConv = document.getElementById('bull-conviction');
+  const bBar = document.getElementById('bull-confidence-bar');
   const bArgs = document.getElementById('bull-arguments');
   const bTgt = document.getElementById('bull-target');
   const bInv = document.getElementById('bull-inval');
   if (bConv) bConv.innerText = `${debate.bull_thesis.conviction_pct.toFixed(1)}%`;
+  if (bBar) bBar.style.width = `${Math.min(100, Math.max(5, debate.bull_thesis.conviction_pct))}%`;
   if (bArgs) {
     bArgs.innerHTML = debate.bull_thesis.key_arguments.map((arg) => `<li>${arg}</li>`).join('');
   }
@@ -1002,10 +1050,12 @@ function renderDebateArena(): void {
 
   // Bear card
   const beConv = document.getElementById('bear-conviction');
+  const beBar = document.getElementById('bear-confidence-bar');
   const beArgs = document.getElementById('bear-arguments');
   const beTgt = document.getElementById('bear-target');
   const beInv = document.getElementById('bear-inval');
   if (beConv) beConv.innerText = `${debate.bear_thesis.conviction_pct.toFixed(1)}%`;
+  if (beBar) beBar.style.width = `${Math.min(100, Math.max(5, debate.bear_thesis.conviction_pct))}%`;
   if (beArgs) {
     beArgs.innerHTML = debate.bear_thesis.key_arguments.map((arg) => `<li>${arg}</li>`).join('');
   }

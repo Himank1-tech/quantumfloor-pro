@@ -113,6 +113,8 @@ export class PriceChartEngine {
 
     const ctx = this.ctx;
     ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#060A12';
+    ctx.fillRect(0, 0, width, height);
 
     // Spacious chart padding (responsive right margin for non-overlapping SMC and price tags)
     const pTop = 22;
@@ -159,7 +161,7 @@ export class PriceChartEngine {
     const barWidth = Math.max(2.5, Math.min(14, step * 0.72));
 
     // 1. Subtle Background Grid Lines
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.08)';
     ctx.lineWidth = 1;
     ctx.fillStyle = '#64748b';
     ctx.font = '10px "JetBrains Mono", monospace';
@@ -179,7 +181,7 @@ export class PriceChartEngine {
       ctx.fillText(formatted, pLeft + chartW + 8, y + 3.5);
     }
 
-    // 2. Draw Candlesticks (Mint Emerald & Coral Rose)
+    // 2. Draw Candlesticks (Neon Emerald #00E676 & Crimson Coral #FF3B6B)
     for (let i = 0; i < candleCount; i++) {
       const c = this.candles[i];
       const x = pLeft + i * step + step / 2;
@@ -190,7 +192,7 @@ export class PriceChartEngine {
       const yOpen = pTop + ((maxPrice - c.open) / priceRange) * chartH;
       const yClose = pTop + ((maxPrice - c.close) / priceRange) * chartH;
 
-      const color = isUp ? '#10B981' : '#F43F5E';
+      const color = isUp ? '#00E676' : '#FF3B6B';
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
 
@@ -207,13 +209,30 @@ export class PriceChartEngine {
       ctx.fillRect(x - barWidth / 2, bodyTop, barWidth, bodyHeight);
     }
 
-    // 3. Draw 20 EMA line overlay (Electric Indigo)
+    // 3. Draw 20 EMA line overlay (Electric Cyan #00E5FF)
     if (this.candles.length >= 5) {
       ctx.beginPath();
-      ctx.strokeStyle = '#6366F1';
+      ctx.strokeStyle = '#00E5FF';
       ctx.lineWidth = 1.6;
       for (let i = 0; i < candleCount; i++) {
         const startIdx = Math.max(0, i - 10);
+        const slice = this.candles.slice(startIdx, i + 1);
+        const avg = slice.reduce((acc, v) => acc + v.close, 0) / slice.length;
+        const x = pLeft + i * step + step / 2;
+        const y = pTop + ((maxPrice - avg) / priceRange) * chartH;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    // 3b. Draw 50 EMA line overlay (Sovereign Gold #F59E0B)
+    if (this.candles.length >= 10) {
+      ctx.beginPath();
+      ctx.strokeStyle = '#F59E0B';
+      ctx.lineWidth = 1.4;
+      for (let i = 0; i < candleCount; i++) {
+        const startIdx = Math.max(0, i - 25);
         const slice = this.candles.slice(startIdx, i + 1);
         const avg = slice.reduce((acc, v) => acc + v.close, 0) / slice.length;
         const x = pLeft + i * step + step / 2;
@@ -240,7 +259,7 @@ export class PriceChartEngine {
 
       ctx.save();
       // Crosshair lines
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+      ctx.strokeStyle = 'rgba(0, 229, 255, 0.35)';
       ctx.lineWidth = 1;
       ctx.setLineDash([3, 3]);
 
@@ -255,8 +274,8 @@ export class PriceChartEngine {
       // Pinned Y-Axis Price Badge
       const hoverPrice = maxPrice - ((hy - pTop) / chartH) * priceRange;
       const hoverPriceStr = hoverPrice >= 1000 ? hoverPrice.toFixed(1) : hoverPrice >= 10 ? hoverPrice.toFixed(2) : hoverPrice.toFixed(4);
-      ctx.fillStyle = '#312e81';
-      ctx.strokeStyle = '#6366f1';
+      ctx.fillStyle = '#071626';
+      ctx.strokeStyle = '#00e5ff';
       ctx.beginPath();
       const pBadgeW = 66;
       const pBadgeH = 17;
@@ -264,7 +283,7 @@ export class PriceChartEngine {
       const pBadgeY = hy - pBadgeH / 2;
       ctx.fillRect(pBadgeX, pBadgeY, pBadgeW, pBadgeH);
       ctx.strokeRect(pBadgeX, pBadgeY, pBadgeW, pBadgeH);
-      ctx.fillStyle = '#e0e7ff';
+      ctx.fillStyle = '#00e5ff';
       ctx.font = 'bold 9px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -279,8 +298,8 @@ export class PriceChartEngine {
       const ttX = pLeft + 8;
       const ttY = pTop - 18;
 
-      ctx.fillStyle = 'rgba(17, 19, 26, 0.88)';
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.fillStyle = 'rgba(7, 11, 20, 0.94)';
+      ctx.strokeStyle = 'rgba(0, 229, 255, 0.30)';
       ctx.beginPath();
       ctx.roundRect ? ctx.roundRect(ttX, ttY, ttW, ttH, 4) : ctx.rect(ttX, ttY, ttW, ttH);
       ctx.fill();
@@ -290,25 +309,25 @@ export class PriceChartEngine {
       ctx.textAlign = 'left';
       ctx.fillStyle = '#94a3b8';
       ctx.fillText('O', ttX + 8, ttY + 14);
-      ctx.fillStyle = isUp ? '#10B981' : '#F43F5E';
+      ctx.fillStyle = isUp ? '#00E676' : '#FF3B6B';
       ctx.fillText(hc.open.toFixed(2), ttX + 20, ttY + 14);
 
       ctx.fillStyle = '#94a3b8';
       ctx.fillText('H', ttX + 80, ttY + 14);
-      ctx.fillStyle = isUp ? '#10B981' : '#F43F5E';
+      ctx.fillStyle = isUp ? '#00E676' : '#FF3B6B';
       ctx.fillText(hc.high.toFixed(2), ttX + 92, ttY + 14);
 
       ctx.fillStyle = '#94a3b8';
       ctx.fillText('L', ttX + 152, ttY + 14);
-      ctx.fillStyle = isUp ? '#10B981' : '#F43F5E';
+      ctx.fillStyle = isUp ? '#00E676' : '#FF3B6B';
       ctx.fillText(hc.low.toFixed(2), ttX + 164, ttY + 14);
 
       ctx.fillStyle = '#94a3b8';
       ctx.fillText('C', ttX + 224, ttY + 14);
-      ctx.fillStyle = isUp ? '#10B981' : '#F43F5E';
+      ctx.fillStyle = isUp ? '#00E676' : '#FF3B6B';
       ctx.fillText(hc.close.toFixed(2), ttX + 236, ttY + 14);
 
-      ctx.fillStyle = isUp ? '#10B981' : '#F43F5E';
+      ctx.fillStyle = isUp ? '#00E676' : '#FF3B6B';
       const chgSign = chg >= 0 ? '+' : '';
       ctx.fillText(`${chgSign}${chg.toFixed(2)} (${chgSign}${chgPct.toFixed(2)}%)`, ttX + 300, ttY + 14);
 
