@@ -971,17 +971,36 @@ export interface TradeBlueprint {
   stop_loss: number;
   take_profit_1: number;
   take_profit_2: number;
+  take_profit_3?: number;
   risk_reward_1: number;
   risk_reward_2: number;
+  risk_reward_3?: number;
+  stop_loss_pts?: number;
+  stop_loss_pips?: number;
+  tp1_pts?: number;
+  tp1_pips?: number;
+  tp2_pts?: number;
+  tp2_pips?: number;
+  tp3_pts?: number;
+  tp3_pips?: number;
   potential_risk_amount: number;
   potential_reward_1: number;
   potential_reward_2: number;
+  potential_reward_3?: number;
   confluence_score: number;
   status: 'ACTIVE_SETUP' | 'PENDING_TAP' | 'INVALIDATED';
   step1_htf_bias: string;
   step2_refined_zone: string;
   step3_confirmation: string;
   step4_blueprint_summary: string;
+}
+
+export interface SupportResistanceLevel {
+  level: string;
+  price: number;
+  distance_pts: number;
+  distance_pips: number;
+  strength: string;
 }
 
 export interface MTFSetupReport {
@@ -991,6 +1010,35 @@ export interface MTFSetupReport {
   macro_bias: string;
   blueprint?: TradeBlueprint;
   executive_rationale: string;
+  support_levels?: SupportResistanceLevel[];
+  resistance_levels?: SupportResistanceLevel[];
+  internal_liquidity?: {
+    inducement_idm: number;
+    idm_pips: number;
+    eqh_eql_status: string;
+    sweep_readiness: string;
+  };
+  external_liquidity?: {
+    bsl_target: number;
+    bsl_pips: number;
+    ssl_target: number;
+    ssl_pips: number;
+    expansion_potential: string;
+  };
+  order_block_quality?: {
+    primary_ob_strength: string;
+    unmitigated_count: number;
+    fvg_fill_pct: string;
+    ote_confluence: string;
+  };
+  quant_telemetry?: {
+    recommended_lots: number;
+    pip_risk: number;
+    risk_reward_summary: string;
+    var_95: string;
+    drawdown_guard: string;
+    kelly_fraction: string;
+  };
 }
 
 export interface MarketSessionInfo {

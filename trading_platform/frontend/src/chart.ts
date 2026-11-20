@@ -1,8 +1,8 @@
 /**
  * High-Performance Interactive Candlestick and Equity Curve Chart Engine
  * Built with HTML5 Canvas for zero-lag 60fps institutional rendering.
- * Styled with TradingView Supercharts ergonomics: 10% Y-axis auto-padding,
- * Mint Emerald (#10B981) & Coral Rose (#F43F5E) colorway, and crosshair margin pills.
+ * Daylight White Institutional Light Theme (#FFFFFF canvas, #F1F5F9 grid, Mint Emerald & Crimson).
+ * Supports click & drag panning, mouse-wheel / button zooming, and auto-fit reset.
  */
 
 import { Candle, SMCAnalysisReport, MTFSetupReport } from './api';
@@ -16,12 +16,20 @@ export class PriceChartEngine {
   private hoverIndex: number | null = null;
   private hoverMouseY: number | null = null;
 
+  // Movable / Zoomable Superchart state
+  public panOffset: number = 0; // 0 = pinned to live edge
+  public visibleBars: number = 65; // default visible candles
+  private isDragging: boolean = false;
+  private dragStartX: number = 0;
+  private dragStartPan: number = 0;
+  private touchStartDist: number | null = null;
+
   constructor(container: HTMLElement) {
     this.canvas = document.createElement('canvas');
     this.canvas.style.width = '100%';
     this.canvas.style.height = '100%';
     this.canvas.style.display = 'block';
-    this.canvas.style.cursor = 'crosshair';
+    this.canvas.style.cursor = 'grab';
     container.innerHTML = '';
     container.appendChild(this.canvas);
 
@@ -36,6 +44,17 @@ export class PriceChartEngine {
       ro.observe(container);
     }
 
+    const getSliceBounds = () => {
+      const total = this.candles.length;
+      if (total === 0) return { startIdx: 0, endIdx: 0, count: 0 };
+      const count = Math.min(total, this.visibleBars);
+      const maxPan = Math.max(0, total - count);
+      const pan = Math.max(0, Math.min(maxPan, this.panOffset));
+      const endIdx = total - pan;
+      const startIdx = Math.max(0, endIdx - count);
+      return { startIdx, endIdx, count: endIdx - startIdx };
+    };
+
     const handlePoint = (clientX: number, clientY: number) => {
       const rect = this.canvas.getBoundingClientRect();
       const x = clientX - rect.left;
@@ -44,10 +63,12 @@ export class PriceChartEngine {
       const pRight = rect.width < 500 ? 54 : 82;
       const chartW = rect.width - pLeft - pRight;
 
-      if (x >= pLeft && x <= pLeft + chartW && this.candles.length > 0) {
-        const step = chartW / this.candles.length;
-        const idx = Math.floor((x - pLeft) / step);
-        this.hoverIndex = Math.max(0, Math.min(this.candles.length - 1, idx));
+      const { startIdx, endIdx, count } = getSliceBounds();
+      if (x >= pLeft && x <= pLeft + chartW && count > 0) {
+        const step = chartW / count;
+        const relIdx = Math.floor((x - pLeft) / step);
+        const actualIdx = startIdx + Math.max(0, Math.min(count - 1, relIdx));
+        this.hoverIndex = actualIdx;
         this.hoverMouseY = y;
         this.render();
       } else {
@@ -57,32 +78,127 @@ export class PriceChartEngine {
       }
     };
 
-    // Mouse hover handler
-    this.canvas.addEventListener('mousemove', (e) => handlePoint(e.clientX, e.clientY));
-    this.canvas.addEventListener('mouseleave', () => {
-      this.hoverIndex = null;
-      this.hoverMouseY = null;
-      this.render();
+    // Drag / Panning Handlers (Mouse)
+    this.canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 0) {
+        this.isDragging = true;
+        this.dragStartX = e.clientX;
+        this.dragStartPan = this.panOffset;
+        this.canvas.style.cursor = 'grabbing';
+      }
     });
 
-    // Touch handlers for mobile / tablet
+    window.addEventListener('mouseup', () => {
+      if (this.isDragging) {
+        this.isDragging = false;
+        this.canvas.style.cursor = 'grab';
+      }
+    });
+
+    this.canvas.addEventListener('mousemove', (e) => {
+      if (this.isDragging) {
+        const rect = this.canvas.getBoundingClientRect();
+        const pLeft = rect.width < 500 ? 6 : 14;
+        const pRight = rect.width < 500 ? 54 : 82;
+        const chartW = rect.width - pLeft - pRight;
+        const count = Math.min(this.candles.length || 65, this.visibleBars);
+        const step = chartW / count;
+
+        const deltaX = e.clientX - this.dragStartX;
+        const deltaBars = Math.round(deltaX / step);
+        const maxPan = Math.max(0, this.candles.length - count);
+        this.panOffset = Math.max(0, Math.min(maxPan, this.dragStartPan + deltaBars));
+        this.render();
+      } else {
+        handlePoint(e.clientX, e.clientY);
+      }
+    });
+
+    this.canvas.addEventListener('mouseleave', () => {
+      if (!this.isDragging) {
+        this.hoverIndex = null;
+        this.hoverMouseY = null;
+        this.render();
+      }
+    });
+
+    // Mouse Wheel Zoom
+    this.canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      if (e.deltaY < 0) {
+        this.zoomIn();
+      } else {
+        this.zoomOut();
+      }
+    }, { passive: false });
+
+    // Touch Handlers for Mobile / Tablet Panning & Pinch Zoom
     this.canvas.addEventListener('touchstart', (e) => {
-      if (e.touches && e.touches.length > 0) {
+      if (e.touches.length === 1) {
+        this.isDragging = true;
+        this.dragStartX = e.touches[0].clientX;
+        this.dragStartPan = this.panOffset;
         handlePoint(e.touches[0].clientX, e.touches[0].clientY);
+      } else if (e.touches.length === 2) {
+        this.isDragging = false;
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        this.touchStartDist = Math.hypot(dx, dy);
       }
     }, { passive: true });
 
     this.canvas.addEventListener('touchmove', (e) => {
-      if (e.touches && e.touches.length > 0) {
-        handlePoint(e.touches[0].clientX, e.touches[0].clientY);
+      if (e.touches.length === 1 && this.isDragging) {
+        const rect = this.canvas.getBoundingClientRect();
+        const pLeft = rect.width < 500 ? 6 : 14;
+        const pRight = rect.width < 500 ? 54 : 82;
+        const chartW = rect.width - pLeft - pRight;
+        const count = Math.min(this.candles.length || 65, this.visibleBars);
+        const step = chartW / count;
+
+        const deltaX = e.touches[0].clientX - this.dragStartX;
+        const deltaBars = Math.round(deltaX / step);
+        const maxPan = Math.max(0, this.candles.length - count);
+        this.panOffset = Math.max(0, Math.min(maxPan, this.dragStartPan + deltaBars));
+        this.render();
+      } else if (e.touches.length === 2 && this.touchStartDist !== null) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const curDist = Math.hypot(dx, dy);
+        if (Math.abs(curDist - this.touchStartDist) > 20) {
+          if (curDist > this.touchStartDist) {
+            this.zoomIn();
+          } else {
+            this.zoomOut();
+          }
+          this.touchStartDist = curDist;
+        }
       }
     }, { passive: true });
 
     this.canvas.addEventListener('touchend', () => {
+      this.isDragging = false;
+      this.touchStartDist = null;
       this.hoverIndex = null;
       this.hoverMouseY = null;
       this.render();
     });
+  }
+
+  public zoomIn(): void {
+    this.visibleBars = Math.max(18, this.visibleBars - 6);
+    this.render();
+  }
+
+  public zoomOut(): void {
+    this.visibleBars = Math.min(this.candles.length || 150, this.visibleBars + 6);
+    this.render();
+  }
+
+  public resetView(): void {
+    this.panOffset = 0;
+    this.visibleBars = 65;
+    this.render();
   }
 
   public setSMCData(smc: SMCAnalysisReport | null, mtf: MTFSetupReport | null): void {
@@ -113,34 +229,44 @@ export class PriceChartEngine {
 
     const ctx = this.ctx;
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#060A12';
+
+    // Daylight White Institutional Canvas Background
+    ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, width, height);
 
-    // Spacious chart padding (responsive right margin for non-overlapping SMC and price tags)
-    const pTop = 22;
+    // Padding configuration
+    const pTop = 24;
     const pBottom = 28;
     const pLeft = width < 500 ? 6 : 14;
-    const pRight = width < 500 ? 54 : 82;
+    const pRight = width < 500 ? 58 : 86;
 
     const chartW = width - pLeft - pRight;
     const chartH = height - pTop - pBottom;
 
-    // Auto-Scale Y-Axis strictly to recent price action: 95th percentile range + 10% padding
-    // Prevents extreme wick outliers or distant SL/TP orders from squashing candlesticks into a flat line
+    // Slice candles based on panOffset and visibleBars
+    const totalBars = this.candles.length;
+    const count = Math.min(totalBars, this.visibleBars);
+    const maxPan = Math.max(0, totalBars - count);
+    const currentPan = Math.max(0, Math.min(maxPan, this.panOffset));
+    const endIdx = totalBars - currentPan;
+    const startIdx = Math.max(0, endIdx - count);
+    const visibleCandles = this.candles.slice(startIdx, endIdx);
+
+    if (visibleCandles.length === 0) return;
+
+    // Calculate Y-axis range strictly from visible candles
     const prices: number[] = [];
-    for (const c of this.candles) {
+    for (const c of visibleCandles) {
       prices.push(c.low, c.high, c.open, c.close);
     }
     prices.sort((a, b) => a - b);
 
-    // 95th percentile range (excluding extreme 2.5% tail outliers on bottom & top)
-    const pLowIdx = Math.floor(prices.length * 0.025);
-    const pHighIdx = Math.min(prices.length - 1, Math.floor(prices.length * 0.975));
+    const pLowIdx = Math.floor(prices.length * 0.02);
+    const pHighIdx = Math.min(prices.length - 1, Math.floor(prices.length * 0.98));
 
-    // Ensure recent active 5 bars are always fully framed
-    const recent = this.candles.slice(-5);
-    const recentMin = Math.min(...recent.map(c => c.low));
-    const recentMax = Math.max(...recent.map(c => c.high));
+    const recent = visibleCandles.slice(-5);
+    const recentMin = Math.min(...recent.map((c) => c.low));
+    const recentMax = Math.max(...recent.map((c) => c.high));
 
     let minPrice = Math.min(prices[pLowIdx] ?? prices[0], recentMin);
     let maxPrice = Math.max(prices[pHighIdx] ?? prices[prices.length - 1], recentMax);
@@ -156,14 +282,14 @@ export class PriceChartEngine {
     maxPrice += pad;
     const priceRange = maxPrice - minPrice;
 
-    const candleCount = this.candles.length;
+    const candleCount = visibleCandles.length;
     const step = chartW / candleCount;
-    const barWidth = Math.max(2.5, Math.min(14, step * 0.72));
+    const barWidth = Math.max(2.5, Math.min(16, step * 0.72));
 
-    // 1. Subtle Background Grid Lines
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.08)';
+    // 1. Subtle Cool-Slate Grid Lines on White
+    ctx.strokeStyle = '#F1F5F9';
     ctx.lineWidth = 1;
-    ctx.fillStyle = '#64748b';
+    ctx.fillStyle = '#64748B';
     ctx.font = '10px "JetBrains Mono", monospace';
 
     const gridLines = 5;
@@ -181,9 +307,9 @@ export class PriceChartEngine {
       ctx.fillText(formatted, pLeft + chartW + 8, y + 3.5);
     }
 
-    // 2. Draw Candlesticks (Neon Emerald #00E676 & Crimson Coral #FF3B6B)
+    // 2. Draw Candlesticks (Emerald #10B981 & Crimson #EF4444)
     for (let i = 0; i < candleCount; i++) {
-      const c = this.candles[i];
+      const c = visibleCandles[i];
       const x = pLeft + i * step + step / 2;
       const isUp = c.close >= c.open;
 
@@ -192,7 +318,7 @@ export class PriceChartEngine {
       const yOpen = pTop + ((maxPrice - c.open) / priceRange) * chartH;
       const yClose = pTop + ((maxPrice - c.close) / priceRange) * chartH;
 
-      const color = isUp ? '#00E676' : '#FF3B6B';
+      const color = isUp ? '#10B981' : '#EF4444';
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
 
@@ -209,14 +335,14 @@ export class PriceChartEngine {
       ctx.fillRect(x - barWidth / 2, bodyTop, barWidth, bodyHeight);
     }
 
-    // 3. Draw 20 EMA line overlay (Electric Cyan #00E5FF)
-    if (this.candles.length >= 5) {
+    // 3. Draw 20 EMA line overlay (Royal Indigo #2563EB)
+    if (visibleCandles.length >= 5) {
       ctx.beginPath();
-      ctx.strokeStyle = '#00E5FF';
-      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = '#2563EB';
+      ctx.lineWidth = 1.8;
       for (let i = 0; i < candleCount; i++) {
-        const startIdx = Math.max(0, i - 10);
-        const slice = this.candles.slice(startIdx, i + 1);
+        const start = Math.max(0, i - 10);
+        const slice = visibleCandles.slice(start, i + 1);
         const avg = slice.reduce((acc, v) => acc + v.close, 0) / slice.length;
         const x = pLeft + i * step + step / 2;
         const y = pTop + ((maxPrice - avg) / priceRange) * chartH;
@@ -226,14 +352,14 @@ export class PriceChartEngine {
       ctx.stroke();
     }
 
-    // 3b. Draw 50 EMA line overlay (Sovereign Gold #F59E0B)
-    if (this.candles.length >= 10) {
+    // 3b. Draw 50 EMA line overlay (Amber #D97706)
+    if (visibleCandles.length >= 10) {
       ctx.beginPath();
-      ctx.strokeStyle = '#F59E0B';
-      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = '#D97706';
+      ctx.lineWidth = 1.5;
       for (let i = 0; i < candleCount; i++) {
-        const startIdx = Math.max(0, i - 25);
-        const slice = this.candles.slice(startIdx, i + 1);
+        const start = Math.max(0, i - 25);
+        const slice = visibleCandles.slice(start, i + 1);
         const avg = slice.reduce((acc, v) => acc + v.close, 0) / slice.length;
         const x = pLeft + i * step + step / 2;
         const y = pTop + ((maxPrice - avg) / priceRange) * chartH;
@@ -243,8 +369,8 @@ export class PriceChartEngine {
       ctx.stroke();
     }
 
-    // 4. Draw SMC Overlays (BOS, CHoCH, BSL/SSL, OBs, FVGs, Fib OTE, Trade Box)
-    this.smcOverlay.render(ctx, width, height, this.candles, minPrice, maxPrice, {
+    // 4. Draw SMC Overlays
+    this.smcOverlay.render(ctx, width, height, visibleCandles, minPrice, maxPrice, {
       top: pTop,
       bottom: pBottom,
       left: pLeft,
@@ -254,84 +380,87 @@ export class PriceChartEngine {
     // 5. Crosshair & Hover Tooltip
     if (this.hoverIndex !== null && this.candles[this.hoverIndex]) {
       const hc = this.candles[this.hoverIndex];
-      const hx = pLeft + this.hoverIndex * step + step / 2;
-      const hy = this.hoverMouseY !== null ? this.hoverMouseY : pTop + ((maxPrice - hc.close) / priceRange) * chartH;
+      const relIdx = this.hoverIndex - startIdx;
+      if (relIdx >= 0 && relIdx < candleCount) {
+        const hx = pLeft + relIdx * step + step / 2;
+        const hy = this.hoverMouseY !== null ? this.hoverMouseY : pTop + ((maxPrice - hc.close) / priceRange) * chartH;
 
-      ctx.save();
-      // Crosshair lines
-      ctx.strokeStyle = 'rgba(0, 229, 255, 0.35)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
+        ctx.save();
+        // Crosshair lines
+        ctx.strokeStyle = 'rgba(37, 99, 235, 0.40)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
 
-      ctx.beginPath();
-      ctx.moveTo(hx, pTop);
-      ctx.lineTo(hx, pTop + chartH);
-      ctx.moveTo(pLeft, hy);
-      ctx.lineTo(pLeft + chartW, hy);
-      ctx.stroke();
-      ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(hx, pTop);
+        ctx.lineTo(hx, pTop + chartH);
+        ctx.moveTo(pLeft, hy);
+        ctx.lineTo(pLeft + chartW, hy);
+        ctx.stroke();
+        ctx.setLineDash([]);
 
-      // Pinned Y-Axis Price Badge
-      const hoverPrice = maxPrice - ((hy - pTop) / chartH) * priceRange;
-      const hoverPriceStr = hoverPrice >= 1000 ? hoverPrice.toFixed(1) : hoverPrice >= 10 ? hoverPrice.toFixed(2) : hoverPrice.toFixed(4);
-      ctx.fillStyle = '#071626';
-      ctx.strokeStyle = '#00e5ff';
-      ctx.beginPath();
-      const pBadgeW = 66;
-      const pBadgeH = 17;
-      const pBadgeX = width - pRight + 4;
-      const pBadgeY = hy - pBadgeH / 2;
-      ctx.fillRect(pBadgeX, pBadgeY, pBadgeW, pBadgeH);
-      ctx.strokeRect(pBadgeX, pBadgeY, pBadgeW, pBadgeH);
-      ctx.fillStyle = '#00e5ff';
-      ctx.font = 'bold 9px "JetBrains Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(hoverPriceStr, pBadgeX + pBadgeW / 2, pBadgeY + pBadgeH / 2);
+        // Pinned Y-Axis Price Badge (Slate #0F172A with #FFFFFF text)
+        const hoverPrice = maxPrice - ((hy - pTop) / chartH) * priceRange;
+        const hoverPriceStr = hoverPrice >= 1000 ? hoverPrice.toFixed(1) : hoverPrice >= 10 ? hoverPrice.toFixed(2) : hoverPrice.toFixed(4);
+        ctx.fillStyle = '#0F172A';
+        ctx.strokeStyle = '#2563EB';
+        ctx.beginPath();
+        const pBadgeW = 68;
+        const pBadgeH = 18;
+        const pBadgeX = width - pRight + 4;
+        const pBadgeY = hy - pBadgeH / 2;
+        ctx.fillRect(pBadgeX, pBadgeY, pBadgeW, pBadgeH);
+        ctx.strokeRect(pBadgeX, pBadgeY, pBadgeW, pBadgeH);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 9px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(hoverPriceStr, pBadgeX + pBadgeW / 2, pBadgeY + pBadgeH / 2);
 
-      // Sleek Top OHLC Legend Pill
-      const isUp = hc.close >= hc.open;
-      const chg = hc.close - hc.open;
-      const chgPct = (chg / hc.open) * 100;
-      const ttW = 390;
-      const ttH = 22;
-      const ttX = pLeft + 8;
-      const ttY = pTop - 18;
+        // Sleek Top OHLC Legend Pill (Daylight White Surface + Subtle Shadow)
+        const isUp = hc.close >= hc.open;
+        const chg = hc.close - hc.open;
+        const chgPct = (chg / hc.open) * 100;
+        const ttW = 390;
+        const ttH = 22;
+        const ttX = pLeft + 8;
+        const ttY = pTop - 20;
 
-      ctx.fillStyle = 'rgba(7, 11, 20, 0.94)';
-      ctx.strokeStyle = 'rgba(0, 229, 255, 0.30)';
-      ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(ttX, ttY, ttW, ttH, 4) : ctx.rect(ttX, ttY, ttW, ttH);
-      ctx.fill();
-      ctx.stroke();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.96)';
+        ctx.strokeStyle = '#E2E8F0';
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(ttX, ttY, ttW, ttH, 4) : ctx.rect(ttX, ttY, ttW, ttH);
+        ctx.fill();
+        ctx.stroke();
 
-      ctx.font = '10px "JetBrains Mono", monospace';
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText('O', ttX + 8, ttY + 14);
-      ctx.fillStyle = isUp ? '#00E676' : '#FF3B6B';
-      ctx.fillText(hc.open.toFixed(2), ttX + 20, ttY + 14);
+        ctx.font = '10px "JetBrains Mono", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#64748B';
+        ctx.fillText('O', ttX + 8, ttY + 14);
+        ctx.fillStyle = isUp ? '#10B981' : '#EF4444';
+        ctx.fillText(hc.open.toFixed(2), ttX + 20, ttY + 14);
 
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText('H', ttX + 80, ttY + 14);
-      ctx.fillStyle = isUp ? '#00E676' : '#FF3B6B';
-      ctx.fillText(hc.high.toFixed(2), ttX + 92, ttY + 14);
+        ctx.fillStyle = '#64748B';
+        ctx.fillText('H', ttX + 80, ttY + 14);
+        ctx.fillStyle = isUp ? '#10B981' : '#EF4444';
+        ctx.fillText(hc.high.toFixed(2), ttX + 92, ttY + 14);
 
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText('L', ttX + 152, ttY + 14);
-      ctx.fillStyle = isUp ? '#00E676' : '#FF3B6B';
-      ctx.fillText(hc.low.toFixed(2), ttX + 164, ttY + 14);
+        ctx.fillStyle = '#64748B';
+        ctx.fillText('L', ttX + 152, ttY + 14);
+        ctx.fillStyle = isUp ? '#10B981' : '#EF4444';
+        ctx.fillText(hc.low.toFixed(2), ttX + 164, ttY + 14);
 
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText('C', ttX + 224, ttY + 14);
-      ctx.fillStyle = isUp ? '#00E676' : '#FF3B6B';
-      ctx.fillText(hc.close.toFixed(2), ttX + 236, ttY + 14);
+        ctx.fillStyle = '#64748B';
+        ctx.fillText('C', ttX + 224, ttY + 14);
+        ctx.fillStyle = isUp ? '#10B981' : '#EF4444';
+        ctx.fillText(hc.close.toFixed(2), ttX + 236, ttY + 14);
 
-      ctx.fillStyle = isUp ? '#00E676' : '#FF3B6B';
-      const chgSign = chg >= 0 ? '+' : '';
-      ctx.fillText(`${chgSign}${chg.toFixed(2)} (${chgSign}${chgPct.toFixed(2)}%)`, ttX + 300, ttY + 14);
+        ctx.fillStyle = isUp ? '#10B981' : '#EF4444';
+        const chgSign = chg >= 0 ? '+' : '';
+        ctx.fillText(`${chgSign}${chg.toFixed(2)} (${chgSign}${chgPct.toFixed(2)}%)`, ttX + 300, ttY + 14);
 
-      ctx.restore();
+        ctx.restore();
+      }
     }
   }
 }
@@ -385,6 +514,10 @@ export class EquityCurveChartEngine {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, width, height);
 
+    // Daylight White background
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, width, height);
+
     const pTop = 16;
     const pBottom = 20;
     const pLeft = 10;
@@ -404,9 +537,9 @@ export class EquityCurveChartEngine {
     const step = chartW / (count - 1 || 1);
 
     // Grid lines
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+    ctx.strokeStyle = '#F1F5F9';
     ctx.lineWidth = 1;
-    ctx.fillStyle = '#64748b';
+    ctx.fillStyle = '#64748B';
     ctx.font = '10px "JetBrains Mono", monospace';
 
     for (let i = 0; i <= 3; i++) {
@@ -424,7 +557,7 @@ export class EquityCurveChartEngine {
 
     // Emerald gradient area fill
     const gradient = ctx.createLinearGradient(0, pTop, 0, pTop + chartH);
-    gradient.addColorStop(0, 'rgba(16, 185, 129, 0.22)');
+    gradient.addColorStop(0, 'rgba(16, 185, 129, 0.20)');
     gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
 
     ctx.beginPath();

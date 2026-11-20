@@ -210,7 +210,7 @@ async def get_single_quote(symbol: str):
 @app.get("/api/market/candles")
 async def get_candles(
     symbol: str = Query(..., description="Ticker symbol"),
-    timeframe: str = Query("15M", description="Timeframe: 5M, 15M, 1H, 4H, 1D"),
+    timeframe: str = Query("15M", description="Timeframe: 1M, 3M, 5M, 15M, 30M, 1H, 4H, 1D"),
     limit: int = 100
 ):
     try:
@@ -874,7 +874,7 @@ def get_sip_history():
 @app.get("/api/smc/analysis")
 async def get_smc_analysis(
     symbol: str = Query(..., description="Ticker symbol"),
-    timeframe: str = Query("15M", description="5M, 15M, 1H, 4H")
+    timeframe: str = Query("15M", description="1M, 3M, 5M, 15M, 30M, 1H, 4H, 1D")
 ):
     candles = await historical_candle_loader.get_candles(symbol, timeframe=timeframe, limit=100)
     struct = detect_market_structure(candles, pivot_depth=3)

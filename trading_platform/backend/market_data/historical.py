@@ -33,8 +33,11 @@ class Candle(BaseModel):
 
 
 TIMEFRAME_CONFIG = {
+    "1M": {"yf_interval": "1m", "yf_period": "1d", "minutes": 1, "default_bars": 100},
+    "3M": {"yf_interval": "2m", "yf_period": "1d", "minutes": 3, "default_bars": 100},
     "5M": {"yf_interval": "5m", "yf_period": "5d", "minutes": 5, "default_bars": 100},
     "15M": {"yf_interval": "15m", "yf_period": "1mo", "minutes": 15, "default_bars": 100},
+    "30M": {"yf_interval": "30m", "yf_period": "1mo", "minutes": 30, "default_bars": 100},
     "1H": {"yf_interval": "1h", "yf_period": "3mo", "minutes": 60, "default_bars": 120},
     "4H": {"yf_interval": "1h", "yf_period": "6mo", "minutes": 240, "default_bars": 120},
     "1D": {"yf_interval": "1d", "yf_period": "1y", "minutes": 1440, "default_bars": 120},

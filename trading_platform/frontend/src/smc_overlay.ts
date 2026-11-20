@@ -201,28 +201,28 @@ export class SMCOverlayRenderer {
       const oteBotY = getY(fib.ote_pocket_low);
 
       // Shaded OTE Golden Pocket
-      ctx.fillStyle = 'rgba(245, 158, 11, 0.08)';
+      ctx.fillStyle = 'rgba(217, 119, 6, 0.08)';
       ctx.fillRect(padding.left, Math.min(oteTopY, oteBotY), chartW, Math.abs(oteBotY - oteTopY));
 
       // 50% Equilibrium Line
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
+      ctx.strokeStyle = 'rgba(100, 116, 139, 0.45)';
       ctx.setLineDash([4, 4]);
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(padding.left, eqY);
       ctx.lineTo(width - padding.right, eqY);
       ctx.stroke();
-      tags.push({ y: eqY, text: '50% EQ', bgColor: '#334155', textColor: '#94a3b8', priority: 25 });
+      tags.push({ y: eqY, text: '50% EQ', bgColor: '#475569', textColor: '#FFFFFF', priority: 25 });
 
       // OTE Sweet Spot (0.705)
       const sweetY = getY(fib.ote_sweet_spot);
-      ctx.strokeStyle = 'rgba(245, 158, 11, 0.8)';
+      ctx.strokeStyle = '#D97706';
       ctx.setLineDash([2, 2]);
       ctx.beginPath();
       ctx.moveTo(padding.left, sweetY);
       ctx.lineTo(width - padding.right, sweetY);
       ctx.stroke();
-      tags.push({ y: sweetY, text: 'OTE .705', bgColor: '#78350f', textColor: '#fde68a', priority: 35 });
+      tags.push({ y: sweetY, text: 'OTE .705', bgColor: '#D97706', textColor: '#FFFFFF', priority: 35 });
       ctx.setLineDash([]);
     }
 
@@ -239,8 +239,8 @@ export class SMCOverlayRenderer {
         const startX = Math.max(padding.left, getX(Math.max(0, ob.candle_index)));
         const isDemand = ob.block_type === 'BULLISH_DEMAND';
 
-        ctx.fillStyle = isDemand ? 'rgba(0, 230, 118, 0.14)' : 'rgba(255, 59, 107, 0.14)';
-        ctx.strokeStyle = isDemand ? 'rgba(0, 230, 118, 0.70)' : 'rgba(255, 59, 107, 0.70)';
+        ctx.fillStyle = isDemand ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)';
+        ctx.strokeStyle = isDemand ? '#059669' : '#DC2626';
         ctx.lineWidth = ob.is_mitigated ? 1 : 1.5;
         ctx.setLineDash(ob.is_mitigated ? [3, 3] : []);
 
@@ -252,8 +252,8 @@ export class SMCOverlayRenderer {
         tags.push({
           y: obMidY,
           text: isDemand ? 'DEMAND OB' : 'SUPPLY OB',
-          bgColor: isDemand ? '#064e3b' : '#881337',
-          textColor: isDemand ? '#00e676' : '#ff3b6b',
+          bgColor: isDemand ? '#059669' : '#DC2626',
+          textColor: '#FFFFFF',
           priority: 55,
         });
       }
@@ -267,8 +267,8 @@ export class SMCOverlayRenderer {
         const startX = Math.max(padding.left, getX(Math.max(0, fvg.candle_index)));
         const isBull = fvg.direction === 'BULLISH';
 
-        ctx.fillStyle = isBull ? 'rgba(0, 229, 255, 0.12)' : 'rgba(245, 158, 11, 0.12)';
-        ctx.strokeStyle = isBull ? 'rgba(0, 229, 255, 0.65)' : 'rgba(245, 158, 11, 0.65)';
+        ctx.fillStyle = isBull ? 'rgba(37, 99, 235, 0.10)' : 'rgba(217, 119, 6, 0.10)';
+        ctx.strokeStyle = isBull ? '#2563EB' : '#D97706';
         ctx.lineWidth = 1;
         ctx.setLineDash([2, 2]);
 
@@ -285,8 +285,8 @@ export class SMCOverlayRenderer {
         tags.push({
           y: ceY,
           text: 'FVG 50%',
-          bgColor: isBull ? '#083344' : '#78350f',
-          textColor: isBull ? '#00e5ff' : '#fbbf24',
+          bgColor: isBull ? '#2563EB' : '#D97706',
+          textColor: '#FFFFFF',
           priority: 45,
         });
       }
@@ -300,7 +300,7 @@ export class SMCOverlayRenderer {
       if (poi.bsl_pools.length > 0) {
         const bsl = poi.bsl_pools[poi.bsl_pools.length - 1];
         const bslY = getY(bsl.price_level);
-        ctx.strokeStyle = 'rgba(255, 59, 107, 0.75)';
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.85)';
         ctx.lineWidth = 1.5;
         ctx.setLineDash([4, 3]);
 
@@ -309,13 +309,13 @@ export class SMCOverlayRenderer {
         ctx.lineTo(width - padding.right, bslY);
         ctx.stroke();
 
-        tags.push({ y: bslY, text: 'BSL POOL', bgColor: '#881337', textColor: '#ff3b6b', priority: 70 });
+        tags.push({ y: bslY, text: 'BSL POOL', bgColor: '#DC2626', textColor: '#FFFFFF', priority: 70 });
       }
 
       if (poi.ssl_pools.length > 0) {
         const ssl = poi.ssl_pools[poi.ssl_pools.length - 1];
         const sslY = getY(ssl.price_level);
-        ctx.strokeStyle = 'rgba(0, 230, 118, 0.75)';
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.85)';
         ctx.lineWidth = 1.5;
         ctx.setLineDash([4, 3]);
 
@@ -404,9 +404,9 @@ export class SMCOverlayRenderer {
       ctx.setLineDash([]);
 
       const slFormatted = bp.stop_loss >= 100 ? bp.stop_loss.toFixed(1) : bp.stop_loss.toFixed(4);
-      tags.push({ y: entryY, text: 'ENTRY', bgColor: '#0369a1', textColor: '#00e5ff', priority: 100 });
-      tags.push({ y: slY, text: `SL ${slFormatted}`, bgColor: '#881337', textColor: '#ff3b6b', priority: 100 });
-      tags.push({ y: tp1Y, text: `TP1 1:${bp.risk_reward_1}`, bgColor: '#064e3b', textColor: '#00e676', priority: 95 });
+      tags.push({ y: entryY, text: 'ENTRY', bgColor: '#2563EB', textColor: '#FFFFFF', priority: 100 });
+      tags.push({ y: slY, text: `SL ${slFormatted}`, bgColor: '#DC2626', textColor: '#FFFFFF', priority: 100 });
+      tags.push({ y: tp1Y, text: `TP1 1:${bp.risk_reward_1}`, bgColor: '#059669', textColor: '#FFFFFF', priority: 95 });
     }
 
     // 6. Live Current Price Tag from Last Candle
@@ -419,8 +419,8 @@ export class SMCOverlayRenderer {
       tags.push({
         y: liveY,
         text: priceFormatted,
-        bgColor: isUp ? '#065f46' : '#9f1239',
-        textColor: isUp ? '#00e676' : '#ff3b6b',
+        bgColor: isUp ? '#059669' : '#DC2626',
+        textColor: '#FFFFFF',
         priority: 120, // highest priority
       });
 

@@ -24,6 +24,8 @@
 *.mov
 *.flv
 *.mp3
+*.ass
+*.srt
 media_output/
 
 # Frontend dependencies & production build outputs
