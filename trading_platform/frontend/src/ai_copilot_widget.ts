@@ -81,15 +81,19 @@ export class AICopilotWidget {
 
   private render() {
     this.container.innerHTML = `
+      <!-- Backdrop for mobile tap-to-close -->
+      <div class="copilot-backdrop" id="copilot-backdrop"></div>
+
       <!-- Minimized Floating Trigger Button -->
       <button class="copilot-launcher" id="btn-copilot-launch" title="Open AI Trading Co-Pilot">
-        <span class="launcher-icon">🤖</span>
+        <span class="launcher-icon">✨</span>
         <span class="launcher-pulse"></span>
         <span class="launcher-text">AI Co-Pilot</span>
       </button>
 
-      <!-- Expanded Drawer / Panel -->
+      <!-- Expanded Drawer / Panel / Bottom Sheet -->
       <div class="copilot-panel">
+        <div class="copilot-sheet-handle"></div>
         <div class="copilot-header">
           <div class="copilot-title-row">
             <span class="robot-avatar">🤖</span>
@@ -100,7 +104,7 @@ export class AICopilotWidget {
           </div>
           <div class="copilot-header-actions">
             <button class="copilot-btn-icon" id="btn-voice-toggle" title="Voice Guidance">${this.isSpeaking ? '🔊' : '🔈'}</button>
-            <button class="copilot-btn-icon" id="btn-copilot-close" title="Minimize Co-Pilot">&times;</button>
+            <button class="copilot-btn-close" id="btn-copilot-close" title="Close Co-Pilot">✕ Close</button>
           </div>
         </div>
 
@@ -144,6 +148,7 @@ export class AICopilotWidget {
 
     this.container.querySelector('#btn-copilot-launch')?.addEventListener('click', () => this.open());
     this.container.querySelector('#btn-copilot-close')?.addEventListener('click', () => this.close());
+    this.container.querySelector('#copilot-backdrop')?.addEventListener('click', () => this.close());
     this.container.querySelector('#btn-voice-toggle')?.addEventListener('click', () => {
       if (this.isSpeaking) this.stopSpeaking();
     });

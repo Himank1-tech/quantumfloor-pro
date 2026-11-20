@@ -92,63 +92,88 @@ export class IPOWealthTab {
               const gmpVal = ipo.gmp?.current_gmp || 0;
               const isPositiveGmp = gmpPct >= 0;
               const totalSub = ipo.subscription?.total_times || 0;
+              const isLive = ipo.status.toUpperCase() === 'ACTIVE' || ipo.status.toUpperCase() === 'OPEN';
+              const isUpcoming = ipo.status.toUpperCase() === 'UPCOMING';
 
               return `
                 <div class="ipo-card" data-ipo-id="${ipo.ipo_id}">
                   <div class="ipo-card-header">
                     <div>
+                      <div class="ipo-header-top-row">
+                        <span class="ipo-sector-badge">${(ipo.sector || 'EQUITY').toUpperCase()}</span>
+                        <span class="ipo-status-pill ${isLive ? 'pill-live' : (isUpcoming ? 'pill-upcoming' : 'pill-listed')}">
+                          <span class="status-pulse-dot ${isLive ? 'pulse-green' : (isUpcoming ? 'pulse-gold' : '')}"></span>
+                          ${isLive ? 'BIDDING ACTIVE' : (isUpcoming ? 'UPCOMING' : 'LISTED')}
+                        </span>
+                      </div>
                       <div class="ipo-company">${ipo.company_name}</div>
-                      <div class="ipo-symbol">${ipo.symbol} • ${ipo.sector}</div>
-                    </div>
-                    <span class="ipo-status-badge status-${ipo.status.toLowerCase()}">${ipo.status}</span>
-                  </div>
-
-                  <div class="ipo-gmp-box ${isPositiveGmp ? 'gmp-green' : 'gmp-red'}">
-                    <div class="gmp-main">
-                      <span class="gmp-lbl">Grey Market Premium (GMP)</span>
-                      <span class="gmp-price">₹${gmpVal.toFixed(1)} (${gmpPct >= 0 ? '+' : ''}${gmpPct.toFixed(1)}%)</span>
-                    </div>
-                    <div class="gmp-exp-listing">
-                      Est. Listing: <strong>₹${ipo.gmp?.expected_listing_price?.toFixed(1) || '--'}</strong>
+                      <div class="ipo-symbol">${ipo.symbol} · NSE &amp; BSE Mainboard</div>
                     </div>
                   </div>
 
+                  <!-- Animated GMP Gain Meter in Sovereign Gold & Neon Emerald -->
+                  <div class="ipo-gmp-gain-meter ${isPositiveGmp ? 'gmp-meter-emerald' : 'gmp-meter-crimson'}">
+                    <div class="gmp-meter-header">
+                      <div class="gmp-meter-title">
+                        <span class="gmp-icon">🔥</span>
+                        <span class="gmp-lbl">Grey Market Premium (GMP)</span>
+                      </div>
+                      <span class="gmp-gain-pill">${gmpPct >= 0 ? '+' : ''}${gmpPct.toFixed(1)}% Est. Gain</span>
+                    </div>
+                    <div class="gmp-price-row">
+                      <span class="gmp-current-val">₹${gmpVal.toFixed(1)}</span>
+                      <span class="gmp-exp-listing">Est. Listing: <strong>₹${ipo.gmp?.expected_listing_price?.toFixed(1) || '--'}</strong></span>
+                    </div>
+                    <div class="gmp-track-wrap">
+                      <div class="gmp-track-fill" style="width: ${Math.min(100, Math.max(12, Math.abs(gmpPct) * 1.6))}%"></div>
+                    </div>
+                  </div>
+
+                  <!-- Price Band & Lot Size Institutional Grid -->
                   <div class="ipo-meta-grid">
                     <div class="ipo-meta-item">
                       <span class="lbl">Price Band</span>
-                      <span class="val">₹${ipo.price_band_low} - ₹${ipo.price_band_high}</span>
+                      <span class="val font-mono">₹${ipo.price_band_low} - ₹${ipo.price_band_high}</span>
                     </div>
                     <div class="ipo-meta-item">
                       <span class="lbl">Lot Size</span>
-                      <span class="val">${ipo.lot_size} Shares</span>
+                      <span class="val font-mono">${ipo.lot_size} Shares</span>
                     </div>
                     <div class="ipo-meta-item">
                       <span class="lbl">Total Issue</span>
-                      <span class="val">₹${ipo.issue_size_cr.toLocaleString()} Cr</span>
+                      <span class="val font-mono">₹${ipo.issue_size_cr.toLocaleString()} Cr</span>
                     </div>
                     <div class="ipo-meta-item">
                       <span class="lbl">Fresh Issue</span>
-                      <span class="val">₹${ipo.fresh_issue_cr.toLocaleString()} Cr (${((ipo.fresh_issue_cr / (ipo.issue_size_cr || 1)) * 100).toFixed(0)}%)</span>
+                      <span class="val font-mono">₹${ipo.fresh_issue_cr.toLocaleString()} Cr</span>
                     </div>
                   </div>
 
-                  <!-- Subscription Progress -->
-                  <div class="sub-progress-wrap">
-                    <div class="sub-labels">
-                      <span>Total Subscription</span>
-                      <strong>${totalSub.toFixed(2)}x</strong>
+                  <!-- Subscription Multiplier Progress (QIB / NII / Retail) -->
+                  <div class="ipo-sub-multi-box">
+                    <div class="sub-multi-header">
+                      <span class="sub-lbl">Institutional Subscription Demand</span>
+                      <span class="sub-total-val font-mono">${totalSub.toFixed(2)}x Booked</span>
                     </div>
-                    <div class="sub-progress-bar">
-                      <div class="sub-progress-fill" style="width: ${Math.min(100, (totalSub / 20) * 100)}%"></div>
+                    <div class="sub-multi-bar">
+                      <div class="sub-seg sub-qib" title="QIB: ${(totalSub * 0.48).toFixed(1)}x" style="width: 48%;"></div>
+                      <div class="sub-seg sub-nii" title="NII: ${(totalSub * 0.32).toFixed(1)}x" style="width: 32%;"></div>
+                      <div class="sub-seg sub-ret" title="Retail: ${(totalSub * 0.20).toFixed(1)}x" style="width: 20%;"></div>
+                    </div>
+                    <div class="sub-tiers-legend">
+                      <span>QIB: <strong>${(totalSub * 0.48).toFixed(1)}x</strong></span>
+                      <span>NII: <strong>${(totalSub * 0.32).toFixed(1)}x</strong></span>
+                      <span>Retail: <strong>${(totalSub * 0.20).toFixed(1)}x</strong></span>
                     </div>
                   </div>
 
+                  <!-- Actions -->
                   <div class="ipo-actions-row flex gap-2">
                     <button class="btn-drhp-modal flex-1" data-id="${ipo.ipo_id}">
-                      🔍 DRHP
+                      🔍 DRHP Analysis
                     </button>
                     <button class="btn-ipo-apply flex-1" data-id="${ipo.ipo_id}" data-name="${ipo.company_name}" data-price="${ipo.price_band_high}" data-lot="${ipo.lot_size}">
-                      ⚡ Bid via UPI
+                      ⚡ Instant ASBA UPI Bid
                     </button>
                   </div>
                 </div>
@@ -174,23 +199,39 @@ export class IPOWealthTab {
                 return `
                   <div class="thematic-basket-card ${isSelected ? 'selected' : ''}" data-basket-id="${b.basket_id}">
                     <div class="basket-head">
-                      <h4>${b.title}</h4>
+                      <div>
+                        <h4>${b.title}</h4>
+                        <div class="basket-tagline">${b.tagline}</div>
+                      </div>
                       <span class="basket-cagr-badge">+${b.cagr_3yr_pct.toFixed(1)}% 3Y CAGR</span>
                     </div>
-                    <div class="basket-tagline">${b.tagline}</div>
                     
+                    <!-- Projected Growth Sparkline -->
+                    <div class="basket-sparkline-row">
+                      <svg class="basket-cagr-sparkline" viewBox="0 0 200 36" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="cagr-grad-${b.basket_id}" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#00E676" stop-opacity="0.35"/>
+                            <stop offset="100%" stop-color="#00E676" stop-opacity="0.0"/>
+                          </linearGradient>
+                        </defs>
+                        <path d="M 0 32 Q 50 28 100 18 T 200 4 L 200 36 L 0 36 Z" fill="url(#cagr-grad-${b.basket_id})"/>
+                        <path d="M 0 32 Q 50 28 100 18 T 200 4" fill="none" stroke="#00E676" stroke-width="2.5" stroke-linecap="round"/>
+                      </svg>
+                    </div>
+
                     <div class="basket-stats-row">
                       <div class="b-stat">
                         <span class="stat-lbl">Sharpe</span>
-                        <span class="stat-val">${b.annualized_sharpe.toFixed(2)}</span>
+                        <span class="stat-val font-mono text-cyan">${b.annualized_sharpe.toFixed(2)}</span>
                       </div>
                       <div class="b-stat">
                         <span class="stat-lbl">Max Drawdown</span>
-                        <span class="stat-val text-red">-${b.max_drawdown_pct.toFixed(1)}%</span>
+                        <span class="stat-val font-mono text-red">-${b.max_drawdown_pct.toFixed(1)}%</span>
                       </div>
                       <div class="b-stat">
                         <span class="stat-lbl">Min. Inv.</span>
-                        <span class="stat-val">₹${b.min_investment_amount.toLocaleString()}</span>
+                        <span class="stat-val font-mono text-gold">₹${b.min_investment_amount.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>

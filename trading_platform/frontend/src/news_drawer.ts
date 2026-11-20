@@ -108,17 +108,26 @@ export class NewsDrawer {
       <div class="news-events-grid">
         ${this.currentFilter === 'LIVE_NEWS' ? (
           (data.news_articles || []).map(art => {
-            const sentClass = art.sentiment === 'BULLISH' ? 'text-green' : (art.sentiment === 'BEARISH' ? 'text-red' : 'text-dim');
+            const isBull = art.sentiment === 'BULLISH';
+            const isBear = art.sentiment === 'BEARISH';
+            const sentClass = isBull ? 'sentiment-bullish' : (isBear ? 'sentiment-bearish' : 'sentiment-neutral');
+            const sourceName = art.source.replace(' (RSS)', '');
+
             return `
-              <div class="news-event-card">
+              <div class="news-wire-card ${isBull ? 'wire-border-emerald' : (isBear ? 'wire-border-crimson' : 'wire-border-cyan')}">
                 <div class="event-header-row">
-                  <span class="currency-tag tag-usd">${art.source.split(' ')[0]}</span>
-                  <a href="${art.link}" target="_blank" rel="noopener noreferrer" class="event-name font-bold hover:underline" style="color:var(--color-cyan)">${art.title}</a>
-                  <span class="event-time-badge ${sentClass}">${art.sentiment}</span>
+                  <div class="wire-source-cluster">
+                    <span class="news-source-pill font-mono">${sourceName}</span>
+                    <span class="sentiment-badge ${sentClass}">● ${art.sentiment}</span>
+                  </div>
+                  <span class="wire-time-badge font-mono">${art.published}</span>
                 </div>
-                <div class="event-schedule-row">
-                  <span class="sched-ist">Published: ${art.published}</span>
-                  <span class="sched-utc">Tickers: ${(art.affected_tickers || []).join(', ')}</span>
+                <div class="wire-title-row">
+                  <a href="${art.link}" target="_blank" rel="noopener noreferrer" class="wire-headline font-bold hover:underline">${art.title}</a>
+                </div>
+                <div class="wire-tickers-row">
+                  <span class="wire-tickers-lbl">Impacted Tickers:</span>
+                  ${(art.affected_tickers || ['NIFTY', 'GLOBAL']).map(t => `<span class="affected-ticker-chip font-mono">${t}</span>`).join('')}
                 </div>
                 <div class="event-desc-row mt-2 text-dim text-xs">${art.summary}</div>
               </div>
@@ -126,37 +135,40 @@ export class NewsDrawer {
           }).join('')
         ) : (
           filtered.map(evt => {
-            const impactClass = evt.impact === 'HIGH_RED' ? 'impact-red' : (evt.impact === 'MEDIUM_ORANGE' ? 'impact-orange' : 'impact-yellow');
+            const impactClass = evt.impact === 'HIGH_RED' ? 'impact-crimson-strip' : (evt.impact === 'MEDIUM_ORANGE' ? 'impact-gold-strip' : 'impact-cyan-strip');
+            const isHigh = evt.impact === 'HIGH_RED';
             const timeBadge = evt.minutes_away > 0 
-              ? `In ${Math.floor(evt.minutes_away / 60)}h ${evt.minutes_away % 60}m` 
-              : `${Math.abs(evt.minutes_away)}m ago`;
+              ? `⏳ In ${Math.floor(evt.minutes_away / 60)}h ${evt.minutes_away % 60}m` 
+              : `✓ ${Math.abs(evt.minutes_away)}m ago`;
 
             return `
               <div class="news-event-card ${impactClass} ${evt.is_imminent ? 'imminent-card' : ''}">
                 <div class="event-header-row">
-                  <span class="impact-indicator"></span>
-                  <span class="currency-tag tag-${evt.currency.toLowerCase()}">${evt.currency}</span>
-                  <span class="event-name">${evt.event_name}</span>
-                  <span class="event-time-badge">${timeBadge}</span>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="currency-tag tag-${evt.currency.toLowerCase()} font-mono font-bold">${evt.currency}</span>
+                    <span class="event-name font-bold">${evt.event_name}</span>
+                  </div>
+                  <span class="event-time-badge font-mono ${isHigh ? 'countdown-pulse-red' : ''}">${timeBadge}</span>
                 </div>
 
                 <div class="event-schedule-row">
-                  <span class="sched-ist">⏰ ${evt.scheduled_ist}</span>
-                  <span class="sched-utc">🌐 ${evt.scheduled_utc}</span>
+                  <span class="sched-ist font-mono">⏰ IST: <strong>${evt.scheduled_ist}</strong></span>
+                  <span class="sched-utc font-mono">🌐 UTC: ${evt.scheduled_utc}</span>
+                  <span class="impact-level-pill font-mono ${impactClass}">${isHigh ? '🔴 HIGH IMPACT' : (evt.impact === 'MEDIUM_ORANGE' ? '🟠 MEDIUM IMPACT' : '🟡 LOW IMPACT')}</span>
                 </div>
 
                 <div class="event-metrics-row">
                   <div class="metric-col">
                     <span class="metric-lbl">Forecast</span>
-                    <span class="metric-val">${evt.forecast}</span>
+                    <span class="metric-val font-mono">${evt.forecast}</span>
                   </div>
                   <div class="metric-col">
                     <span class="metric-lbl">Previous</span>
-                    <span class="metric-val">${evt.previous}</span>
+                    <span class="metric-val font-mono">${evt.previous}</span>
                   </div>
                   <div class="metric-col">
                     <span class="metric-lbl">Actual</span>
-                    <span class="metric-val ${evt.actual ? 'actual-printed' : 'pending'}">${evt.actual || 'Pending'}</span>
+                    <span class="metric-val font-mono ${evt.actual ? 'actual-printed' : 'pending'}">${evt.actual || 'Pending'}</span>
                   </div>
                 </div>
 

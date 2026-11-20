@@ -119,40 +119,41 @@ SCENES = [
     },
     {
         "id": "scene7",
-        "name": "Live Indian IPO Hub & Historical Backtest Lab",
-        "badge": "WEALTH & QUANT LAB",
-        "title": "IPO INTELLIGENCE & BACKTEST LAB",
-        "subtitle": "Live NSE Prospectus GMP, ASBA Bidding & Strategy Replay Simulation",
+        "name": "Redesigned IPO & Wealth Hub (Live Interaction)",
+        "badge": "WEALTH & IPO INTELLIGENCE",
+        "title": "INSTITUTIONAL IPO & WEALTH HUB",
+        "subtitle": "Live GMP Gain Meters, Tiered Subscription Demand & Thematic SIP Baskets",
         "script": (
-            "The platform extends into wealth generation with the Live IPO Intelligence Hub, streaming real-time NSE prospectus metrics, "
-            "grey market premiums, and ASBA bidding. Long-term compounding portfolios can be automated through thematic baskets. "
-            "In the Quantitative Backtest Lab, traders simulate SMC strategies on genuine historical candlestick sequences, "
-            "generating complete equity curves and performance tear-sheets."
+            "The platform extends into wealth generation with the newly redesigned Institutional IPO and Wealth Hub. "
+            "Traders can explore active mainboard issues, inspect animated Grey Market Premium gain meters in Sovereign Gold, "
+            "analyze QIB, NII, and Retail subscription demand tiers, and trigger one-click ASBA UPI bidding modals. "
+            "Systematic long-term compounding is powered by Thematic Wealth Baskets with multi-year CAGR sparkline projections."
         ),
     },
     {
         "id": "scene8",
-        "name": "Live Macro News, Google OAuth & Fernet Multi-Broker Vault",
-        "badge": "SECURITY & VAULT",
-        "title": "MACRO NEWS, GOOGLE OAUTH & BROKER VAULT",
-        "subtitle": "Live Economic Calendar, Fernet AES-128 Encryption & Immutable Audit Trail",
+        "name": "Redesigned Backtest Lab & Live Macro News Wire",
+        "badge": "QUANT LAB & LIVE WIRE",
+        "title": "QUANTITATIVE STRATEGY STUDIO & MACRO WIRE",
+        "subtitle": "Preset Algorithmic Confluence, Equity Curve Canvas & High-Impact Calendar",
         "script": (
-            "To navigate global volatility, the Macro Session Intelligence drawer aggregates live financial news wires and economic calendar alerts. "
-            "User authentication is secured by genuine Google OAuth 2.0, while the institutional Fernet AES-128 Broker Vault manages "
-            "encrypted credentials for Zerodha Kite, Groww, Angel One, OANDA, and MetaTrader, supported by an immutable audit trail."
+            "In the Quantitative Strategy Studio, traders evaluate algorithmic setups across historical market data. "
+            "Selecting preset strategies like Smart Money Concepts liquidity sweeps immediately simulates trade execution, "
+            "rendering a glowing cyan-emerald equity curve alongside Net Return, Sharpe ratio, and Max Drawdown tear-sheets. "
+            "Complementing the quant studio, the Live Institutional News Wire monitors macro impact events and real-time headlines."
         ),
     },
     {
         "id": "scene9",
-        "name": "Responsive Mobile Terminal View & Closing Outro",
-        "badge": "MOBILE-FIRST TERMINAL",
-        "title": "RESPONSIVE ERGONOMICS & INSTITUTIONAL CLOSE",
-        "subtitle": "Zero-Overflow Mobile Viewport, 2-Column KPIs & Complete Multi-Asset Power",
+        "name": "Security Command Center, Fernet Vault & Mobile View",
+        "badge": "SECURITY & MOBILE-FIRST",
+        "title": "SECURITY COMMAND CENTER & MOBILE ERGONOMICS",
+        "subtitle": "Google OAuth 2.0, Fernet Multi-Broker Connectivity & Half-Sheet AI Assistant",
         "script": (
-            "Designed mobile-first and desktop-hardened, QuantumFloor Pro delivers an uncompromising institutional terminal experience "
-            "across phones, tablets, and multi-monitor setups with zero horizontal overflow. "
-            "Seamless multi-asset coverage, autonomous AI intelligence, and enterprise cloud reliability. "
-            "QuantumFloor Pro: autonomous institutional finance, redefined."
+            "The Security Command Center pairs genuine Google OAuth 2.0 authentication with an AES-128 Fernet encrypted vault, "
+            "maintaining live low-latency connectivity across Zerodha, Groww, Angel One, OANDA, and MetaTrader with verifiable audit logging. "
+            "On mobile phones, QuantumFloor Pro adapts seamlessly with zero horizontal overflow, compact bottom navigation, "
+            "and a sleek half-sheet AI Co-Pilot drawer. Autonomous institutional finance, redefined."
         ),
     },
 ]
@@ -576,89 +577,107 @@ async def record_scene_video(context, page, scene, target_duration: float):
         await asyncio.sleep(2.5)
 
     elif sid == "scene7":
-        # Scene 7: Live Indian IPO Hub & Historical Backtest Lab
+        # Scene 7: Redesigned Institutional IPO & Wealth Hub
         await page.evaluate("window.scrollTo({ top: 0, behavior: 'smooth' });")
         await asyncio.sleep(0.8)
         # Click IPO & Wealth tab
         await smooth_move(540, 30, click=True)
         await page.evaluate("() => { const tab = document.querySelector('button.nav-tab-item[data-view=\"IPO\"]'); if(tab) tab.click(); }")
         await asyncio.sleep(2.5)
-        # Inspect IPO card & GMP meter
-        await smooth_move(420, 350)
+        # Scroll smoothly through redesigned institutional IPO cards
+        await page.evaluate("window.scrollBy({ top: 280, behavior: 'smooth' });")
         await asyncio.sleep(1.8)
-        # Click ASBA Bid Apply button
-        await smooth_move(420, 490, click=True)
+        # Inspect animated GMP meter & subscription demand
+        await smooth_move(420, 360)
+        await asyncio.sleep(1.8)
+        # Click Instant ASBA UPI Bid modal
+        await smooth_move(520, 520, click=True)
         await page.evaluate("() => { const b = document.querySelector('.btn-ipo-apply'); if(b) b.click(); }")
-        await asyncio.sleep(2.0)
+        await asyncio.sleep(2.2)
         # Close bid modal
-        await page.evaluate("() => { const c = document.querySelector('#btn-cancel-ipo-bid') || document.querySelector('.modal-close-btn'); if(c) c.click(); }")
+        await page.evaluate("() => { const c = document.querySelector('#btn-cancel-ipo-bid') || document.querySelector('.modal-close-btn') || document.querySelector('#btn-close-ipo-modal'); if(c) c.click(); }")
         await asyncio.sleep(1.0)
-        # Switch to Backtest Lab tab
-        await smooth_move(660, 30, click=True)
-        await page.evaluate("() => { const tab = document.querySelector('button.nav-tab-item[data-view=\"BACKTEST\"]'); if(tab) tab.click(); }")
+        # Scroll down to Thematic Wealth Baskets & SIP Compounding
+        await page.evaluate("window.scrollBy({ top: 480, behavior: 'smooth' });")
+        await asyncio.sleep(1.8)
+        # Click on second thematic basket card to trigger dynamic compound calculation
+        await smooth_move(360, 480, click=True)
+        await page.evaluate("() => { const cards = document.querySelectorAll('.thematic-basket-card'); if(cards.length > 1) cards[1].click(); }")
         await asyncio.sleep(2.5)
-        # Click Run Backtest
-        await smooth_move(1020, 240, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-run-backtest'); if(b) b.click(); }")
-        await asyncio.sleep(3.0)
-        # Hover Equity Curve
-        await smooth_move(650, 480)
-        await asyncio.sleep(2.0)
-        # Return to Floor tab
-        await page.evaluate("() => { const tab = document.querySelector('button.nav-tab-item[data-view=\"FLOOR\"]'); if(tab) tab.click(); }")
-        await asyncio.sleep(1.0)
 
     elif sid == "scene8":
-        # Scene 8: Live Macro News, Google OAuth & Fernet Multi-Broker Vault
-        # Open Macro News & Calendar Drawer
-        await smooth_move(1220, 30, click=True)
-        await page.evaluate("() => { const b = document.getElementById('nav-session-trigger'); if(b) b.click(); }")
+        # Scene 8: Redesigned Quantitative Strategy Studio & Live Macro Wire
+        await page.evaluate("window.scrollTo({ top: 0, behavior: 'smooth' });")
+        await asyncio.sleep(0.8)
+        # Click Backtest Lab nav tab
+        await smooth_move(660, 30, click=True)
+        await page.evaluate("() => { const tab = document.querySelector('button.nav-tab-item[data-view=\"BACKTEST\"]'); if(tab) tab.click(); }")
         await asyncio.sleep(2.2)
-        # Scroll inside news drawer
-        await smooth_move(1600, 400)
-        await asyncio.sleep(1.5)
-        # Close news drawer
-        await smooth_move(1880, 160, click=True)
-        await page.evaluate("() => { const b = document.getElementById('news-close-btn') || document.querySelector('.modal-close-btn'); if(b) b.click(); }")
-        await asyncio.sleep(1.0)
-        # Open Security & Account Vault
-        await smooth_move(1680, 30, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-nav-user'); if(b) b.click(); }")
+        # Click Strategy Preset 01 (SMC Liquidity Sweep & OTE)
+        await smooth_move(320, 160, click=True)
+        await page.evaluate("() => { const p = document.querySelector('.strategy-preset-card[data-preset=\"SMC_SWEEP\"]'); if(p) p.click(); }")
         await asyncio.sleep(2.5)
-        # Highlight Google OAuth user pill
-        await smooth_move(350, 220)
-        await asyncio.sleep(1.5)
-        # Highlight Fernet Broker Vault cards (Zerodha Kite, Groww, Angel One, OANDA, MT4/MT5)
-        await smooth_move(700, 340)
+        # Highlight 4 Executive Metric Cards (Net Return %, Sharpe Ratio, Win Rate %, Max Drawdown %)
+        await smooth_move(450, 290)
         await asyncio.sleep(1.8)
-        # Highlight Immutable Audit Trail
-        await smooth_move(600, 600)
+        # Highlight Glowing Cyan-Emerald Equity Curve Canvas
+        await smooth_move(600, 440)
+        await asyncio.sleep(2.2)
+        # Open Economic News & Live Institutional Wire
+        await smooth_move(780, 30, click=True)
+        await page.evaluate("() => { const tab = document.querySelector('button.nav-tab-item[data-view=\"NEWS\"]') || document.getElementById('nav-session-trigger'); if(tab) tab.click(); }")
+        await asyncio.sleep(2.2)
+        # Click Live Wire filter tab
+        await smooth_move(850, 140, click=True)
+        await page.evaluate("() => { const b = document.querySelector('button.filter-tab[data-filter=\"LIVE_NEWS\"]'); if(b) b.click(); }")
         await asyncio.sleep(2.0)
-        # Return to Floor tab
-        await page.evaluate("() => { const tab = document.querySelector('button.nav-tab-item[data-view=\"FLOOR\"]'); if(tab) tab.click(); }")
+        # Scroll down through Live Wire headlines with sentiment tags
+        await smooth_move(550, 400)
+        await asyncio.sleep(2.0)
+        # Close News drawer
+        await page.evaluate("() => { const b = document.getElementById('news-close-btn') || document.querySelector('.modal-close-btn'); if(b) b.click(); }")
         await asyncio.sleep(1.0)
 
     elif sid == "scene9":
-        # Scene 9: Responsive Mobile Terminal View & Closing Outro
-        # Smoothly resize viewport to mobile (390x844)
+        # Scene 9: Security Command Center, Fernet Vault & Mobile View
+        await page.evaluate("window.scrollTo({ top: 0, behavior: 'smooth' });")
+        await asyncio.sleep(0.8)
+        # Click Account & Security tab
+        await smooth_move(1020, 30, click=True)
+        await page.evaluate("() => { const tab = document.querySelector('button.nav-tab-item[data-view=\"SECURITY\"]'); if(tab) tab.click(); }")
+        await asyncio.sleep(2.2)
+        # Highlight Google OAuth 2.0 verified profile card
+        await smooth_move(350, 200)
+        await asyncio.sleep(1.8)
+        # Click Test Ping on Zerodha Kite Connect live broker card
+        await smooth_move(860, 390, click=True)
+        await page.evaluate("() => { const btn = document.querySelector('.btn-test-broker-card'); if(btn) btn.click(); }")
+        await asyncio.sleep(2.0)
+        # Scroll to show immutable security audit log
+        await page.evaluate("window.scrollBy({ top: 320, behavior: 'smooth' });")
+        await asyncio.sleep(1.8)
+        # Demonstrate Mobile Viewport (390x844)
         print("  📱 Demonstrating Mobile Layout (390x844)...")
         await page.set_viewport_size({"width": 390, "height": 844})
+        await page.evaluate("() => { const tab = document.querySelector('button.nav-tab-item[data-view=\"FLOOR\"]'); if(tab) tab.click(); }")
+        await page.evaluate("window.scrollTo({ top: 0 });")
         await asyncio.sleep(2.0)
-        # Highlight mobile top bar & hamburger
-        await smooth_move(340, 28)
-        await asyncio.sleep(1.2)
-        # Scroll through mobile 2-column KPI cards and responsive chart
-        await page.evaluate("window.scrollBy({ top: 300, behavior: 'smooth' });")
+        # Highlight compact mobile top bar & 2-column KPI cards
+        await smooth_move(195, 200)
+        await asyncio.sleep(1.5)
+        # Tap floating AI Co-Pilot icon pill at bottom:74px, right:14px
+        await smooth_move(355, 755, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-copilot-launch'); if(b) b.click(); }")
         await asyncio.sleep(2.2)
-        # Highlight bottom navigation bar
-        await smooth_move(195, 820)
-        await asyncio.sleep(1.8)
-        # Return to Desktop 1920x1080
+        # Show sleek 58vh bottom sheet, then tap large prominent Close button
+        await smooth_move(350, 410, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-copilot-close'); if(b) b.click(); }")
+        await asyncio.sleep(1.2)
+        # Return to Desktop 1920x1080 & Display Outro Card
         print("  🖥️ Returning to Desktop & Displaying Outro Brand Card...")
         await page.set_viewport_size({"width": 1920, "height": 1080})
         await page.evaluate("window.scrollTo({ top: 0 });")
         await asyncio.sleep(1.0)
-        # Display closing brand card
         await page.evaluate("window.__showOutroCard(true);")
         await asyncio.sleep(3.5)
 
@@ -762,7 +781,7 @@ async def produce_full_video():
 
             context = await browser.new_context(
                 viewport={"width": 1920, "height": 1080},
-                device_scale_factor=1,
+                device_scale_factor=2,
                 color_scheme="dark",
                 record_video_dir=scene_rec_dir,
                 record_video_size={"width": 1920, "height": 1080},
@@ -855,14 +874,14 @@ async def produce_full_video():
         except Exception:
             pass
 
-    # 5. Lossless Audio Mix with Ambient Synth Music (-32dB)
-    print("\n🎛️ Audio Post-Production: Mixing Neural Voice + Subtle Ambient Synth Pad (-32dB)...")
+    # 5. Lossless Audio Mix with Ambient Synth Music (-30dB)
+    print("\n🎛️ Audio Post-Production: Mixing Neural Voice + Subtle Ambient Synth Pad (-30dB)...")
     mix_cmd = [
         FFMPEG_BIN, "-y",
         "-i", temp_concat_mp4,
         "-i", bg_music_path,
         "-filter_complex",
-        "[0:a]volume=1.0[v_voice];[1:a]volume=0.025[v_synth];[v_voice][v_synth]amix=inputs=2:duration=first:dropout_transition=2[aout]",
+        "[0:a]volume=1.0[v_voice];[1:a]volume=0.031[v_synth];[v_voice][v_synth]amix=inputs=2:duration=first:dropout_transition=2[aout]",
         "-c:v", "copy",
         "-c:a", "aac",
         "-b:a", "192k",

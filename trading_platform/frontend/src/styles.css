@@ -1439,17 +1439,66 @@ body {
   font-family: var(--font-sans);
 }
 .copilot-widget.minimized .copilot-panel {
+  display: none !important;
+}
+.copilot-widget.minimized .copilot-backdrop {
+  display: none !important;
+}
+.copilot-backdrop {
   display: none;
+}
+.copilot-sheet-handle {
+  display: none;
+}
+.copilot-launcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #00E5FF 0%, #0EA5E9 100%);
+  color: #030712;
+  font-weight: 800;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 9999px;
+  cursor: pointer;
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.45);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.copilot-launcher:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 0 32px rgba(0, 229, 255, 0.65);
+}
+.launcher-icon {
+  font-size: 16px;
+}
+.copilot-btn-close {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 59, 107, 0.15);
+  border: 1px solid rgba(255, 59, 107, 0.40);
+  color: #ff3b6b;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.copilot-btn-close:hover {
+  background: rgba(255, 59, 107, 0.30);
+  color: #fff;
 }
 .copilot-panel {
   width: 420px;
   height: 580px;
-  background: var(--bg-card);
+  background: rgba(11, 17, 30, 0.95);
+  backdrop-filter: blur(20px);
   border: 1px solid var(--border-card);
-  border-radius: 12px;
+  border-radius: 14px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.90), 0 0 30px rgba(0, 229, 255, 0.15);
   overflow: hidden;
 }
 
@@ -1638,7 +1687,11 @@ body {
   font-weight: 800;
 }
 
-/* Backtest Lab, IPO & Wealth Tab styling preservation */
+/* ==========================================================================
+   INSTITUTIONAL SECONDARY SUITES (IPO, BACKTEST, NEWS, SECURITY, ADVISORY)
+   ========================================================================== */
+
+/* 1. IPO & WEALTH HUB */
 .backtest-lab-view, .ipo-wealth-view {
   display: flex;
   flex-direction: column;
@@ -1646,23 +1699,661 @@ body {
 }
 .wealth-section, .backtest-controls-card {
   background: var(--bg-card);
+  backdrop-filter: blur(18px);
   border: 1px solid var(--border-card);
-  border-radius: 10px;
-  padding: 18px;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.70);
 }
 .ipo-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 16px;
+  gap: 18px;
 }
 .ipo-card {
-  background: var(--bg-card-elevated);
+  background: rgba(14, 21, 36, 0.90);
+  backdrop-filter: blur(14px);
   border: 1px solid var(--border-card);
+  border-radius: 10px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+.ipo-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #00E5FF 0%, #F59E0B 50%, #00E676 100%);
+  opacity: 0.8;
+}
+.ipo-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(0, 229, 255, 0.50);
+  box-shadow: 0 16px 40px rgba(0, 229, 255, 0.12);
+}
+.ipo-header-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.ipo-sector-badge {
+  font-size: 10px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--color-cyan);
+  background: rgba(0, 229, 255, 0.12);
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+.ipo-status-pill {
+  font-size: 10px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+.ipo-status-pill.pill-live {
+  color: var(--color-green);
+  background: rgba(0, 230, 118, 0.14);
+  border: 1px solid rgba(0, 230, 118, 0.40);
+}
+.ipo-status-pill.pill-upcoming {
+  color: var(--color-amber);
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.40);
+}
+.ipo-status-pill.pill-listed {
+  color: var(--color-cyan);
+  background: rgba(0, 229, 255, 0.12);
+  border: 1px solid rgba(0, 229, 255, 0.35);
+}
+.ipo-company {
+  font-size: 17px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.2px;
+}
+.ipo-symbol {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.ipo-gmp-gain-meter {
+  padding: 12px 14px;
   border-radius: 8px;
-  padding: 16px;
+  border: 1px solid var(--border-card);
+}
+.gmp-meter-emerald {
+  background: linear-gradient(135deg, rgba(0, 230, 118, 0.12) 0%, rgba(245, 158, 11, 0.08) 100%);
+  border-color: rgba(0, 230, 118, 0.35);
+}
+.gmp-meter-crimson {
+  background: linear-gradient(135deg, rgba(255, 59, 107, 0.12) 0%, rgba(0, 0, 0, 0.4) 100%);
+  border-color: rgba(255, 59, 107, 0.35);
+}
+.gmp-meter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.gmp-meter-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.gmp-gain-pill {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-green);
+  background: rgba(0, 230, 118, 0.18);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.gmp-price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 8px;
+}
+.gmp-current-val {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+}
+.gmp-exp-listing {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.gmp-exp-listing strong {
+  color: var(--color-gold);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+.gmp-track-wrap {
+  width: 100%;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+.gmp-track-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #F59E0B 0%, #00E676 100%);
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ipo-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  background: rgba(5, 7, 12, 0.6);
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+}
+.ipo-meta-item {
+  display: flex;
+  flex-direction: column;
+}
+.ipo-meta-item .lbl {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.ipo-meta-item .val {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.ipo-sub-multi-box {
+  background: rgba(5, 7, 12, 0.45);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+.sub-multi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+.sub-lbl {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.sub-total-val {
+  color: var(--color-cyan);
+  font-weight: 800;
+}
+.sub-multi-bar {
+  display: flex;
+  height: 6px;
+  width: 100%;
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 8px 0;
+  background: rgba(255, 255, 255, 0.05);
+}
+.sub-seg.sub-qib { background: #00E5FF; }
+.sub-seg.sub-nii { background: #F59E0B; }
+.sub-seg.sub-ret { background: #00E676; }
+.sub-tiers-legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+.sub-tiers-legend strong {
+  color: var(--text-main);
+}
+.btn-drhp-modal {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-card);
+  color: var(--text-main);
+  padding: 9px 14px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-drhp-modal:hover {
+  background: var(--bg-hover);
+  border-color: var(--color-cyan);
+  color: var(--color-cyan);
+}
+.btn-ipo-apply {
+  background: linear-gradient(135deg, #00E5FF 0%, #0EA5E9 100%);
+  color: #030712;
+  font-weight: 800;
+  border: none;
+  padding: 9px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.35);
+}
+.btn-ipo-apply:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.55);
+}
+
+/* Thematic Wealth Baskets & Sparklines */
+.baskets-cards-col {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+.thematic-basket-card {
+  background: rgba(14, 21, 36, 0.85);
+  border: 1px solid var(--border-card);
+  border-radius: 10px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+.thematic-basket-card:hover, .thematic-basket-card.selected {
+  background: rgba(20, 29, 48, 0.95);
+  border-color: #00E5FF;
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.25);
+}
+.thematic-basket-card.selected {
+  border-color: var(--color-gold);
+}
+.basket-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.basket-head h4 {
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+}
+.basket-tagline {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+.basket-cagr-badge {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-green);
+  background: rgba(0, 230, 118, 0.16);
+  border: 1px solid rgba(0, 230, 118, 0.40);
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.basket-sparkline-row {
+  margin: 10px 0 8px;
+  height: 36px;
+}
+.basket-cagr-sparkline {
+  width: 100%;
+  height: 100%;
+}
+.basket-stats-row {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 11px;
+}
+.b-stat {
+  display: flex;
+  flex-direction: column;
+}
+.b-stat .stat-lbl {
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.b-stat .stat-val {
+  font-weight: 800;
+  font-size: 12px;
+}
+
+/* 2. QUANTITATIVE STRATEGY STUDIO (BACKTEST LAB) */
+.strategy-presets-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.strategy-preset-card {
+  background: rgba(14, 21, 36, 0.88);
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+.strategy-preset-card:hover {
+  border-color: #00E5FF;
+  transform: translateY(-2px);
+}
+.strategy-preset-card.active {
+  background: rgba(20, 30, 50, 0.95);
+  border-color: #00E5FF;
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.25);
+}
+.preset-badge {
+  font-size: 9px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--color-cyan);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.preset-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 4px;
+}
+.preset-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.35;
+  margin-bottom: 8px;
+}
+.preset-meta {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+}
+
+.tearsheet-metrics-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.tear-stat-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  overflow: hidden;
+}
+.tear-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+.kpi-exec-return::before { background: #00E676; }
+.kpi-exec-sharpe::before { background: #00E5FF; }
+.kpi-exec-winrate::before { background: #00E676; }
+.kpi-exec-drawdown::before { background: #FF3B6B; }
+.kpi-exec-trades::before { background: #F59E0B; }
+
+.tear-lbl {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.tear-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+}
+.tear-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.bt-equity-canvas-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.bt-canvas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.bt-canvas-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+}
+.bt-canvas-stats {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bt-canvas-wrapper {
+  width: 100%;
+  height: 200px;
+  position: relative;
+}
+#bt-equity-curve-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 3. LIVE INSTITUTIONAL WIRE (ECONOMIC NEWS) */
+.news-wire-card {
+  background: rgba(14, 21, 36, 0.90);
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s;
+}
+.wire-border-emerald { border-left: 4px solid #00E676 !important; }
+.wire-border-crimson { border-left: 4px solid #FF3B6B !important; }
+.wire-border-cyan { border-left: 4px solid #00E5FF !important; }
+.impact-crimson-strip { border-left: 4px solid #FF3B6B !important; }
+.impact-gold-strip { border-left: 4px solid #F59E0B !important; }
+.impact-cyan-strip { border-left: 4px solid #00E5FF !important; }
+
+.wire-source-cluster {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.news-source-pill {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--color-cyan);
+  background: rgba(0, 229, 255, 0.12);
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+.sentiment-badge {
+  font-size: 10px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+.sentiment-bullish { color: #00E676; background: rgba(0, 230, 118, 0.14); }
+.sentiment-bearish { color: #FF3B6B; background: rgba(255, 59, 107, 0.14); }
+.sentiment-neutral { color: #94A3B8; background: rgba(148, 163, 184, 0.14); }
+.wire-headline {
+  font-size: 14px;
+  color: #fff;
+  line-height: 1.4;
+}
+.wire-tickers-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.wire-tickers-lbl {
+  color: var(--text-dim);
+  font-size: 10px;
+}
+.affected-ticker-chip {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-cyan);
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+.countdown-pulse-red {
+  color: #FF3B6B !important;
+  font-weight: 800;
+  animation: pulseNews 1.5s infinite;
+}
+@keyframes pulseNews {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* 4. SECURITY COMMAND CENTER & FERNET BROKER VAULT */
+.google-oauth-profile-card {
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+}
+.profile-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.google-avatar-cluster {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.broker-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+.broker-live-card {
+  background: rgba(14, 21, 36, 0.90);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.2s;
+}
+.broker-live-card:hover {
+  border-color: #00E5FF;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 229, 255, 0.15);
+}
+.broker-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.broker-brand-cluster {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.broker-flag { font-size: 18px; }
+.broker-name { font-size: 13px; font-weight: 800; color: #fff; }
+.broker-tag { font-size: 10px; color: var(--text-dim); }
+.broker-status-pill {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+.broker-status-pill.status-connected {
+  color: var(--color-green);
+  background: rgba(0, 230, 118, 0.12);
+  border: 1px solid rgba(0, 230, 118, 0.35);
+}
+.broker-keys-strip {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  background: rgba(5, 7, 12, 0.6);
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+}
+.broker-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+.broker-latency {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.broker-latency strong { color: var(--color-green); }
+.btn-test-broker-card {
+  background: rgba(0, 229, 255, 0.10);
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  color: var(--color-cyan);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-test-broker-card:hover {
+  background: #00E5FF;
+  color: #030712;
 }
 
 /* Regulatory Disclaimer Footer */
@@ -2120,16 +2811,68 @@ body {
     padding-bottom: 76px !important;
   }
 
-  /* Floating Co-Pilot positioned above bottom navigation bar */
+  /* Compact Floating AI Co-Pilot on Mobile (< 768px) */
   .copilot-widget {
-    bottom: 76px !important;
-    right: 16px !important;
+    bottom: 74px !important;
+    right: 14px !important;
   }
-  .copilot-panel {
-    width: calc(100vw - 32px) !important;
-    max-width: 380px !important;
-    height: 500px !important;
-    max-height: 72vh !important;
+  .copilot-widget.minimized .copilot-launcher {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    justify-content: center !important;
+    align-items: center !important;
+    box-shadow: 0 0 20px rgba(0, 229, 255, 0.45) !important;
+  }
+  .copilot-widget.minimized .copilot-launcher .launcher-text {
+    display: none !important;
+  }
+  .copilot-widget.minimized .copilot-launcher .launcher-pulse {
+    display: none !important;
+  }
+  .copilot-widget.minimized .copilot-panel {
+    display: none !important;
+  }
+  .copilot-widget.minimized .copilot-backdrop {
+    display: none !important;
+  }
+  .copilot-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 7, 12, 0.75);
+    backdrop-filter: blur(6px);
+    z-index: 9998;
+    display: block !important;
+  }
+  .copilot-widget:not(.minimized) .copilot-launcher {
+    display: none !important;
+  }
+  .copilot-widget:not(.minimized) .copilot-panel {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 58vh !important;
+    max-height: 460px !important;
+    border-radius: 20px 20px 0 0 !important;
+    border-bottom: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    z-index: 9999 !important;
+    box-shadow: 0 -14px 48px rgba(0, 0, 0, 0.95) !important;
+  }
+  .copilot-sheet-handle {
+    display: block !important;
+    width: 40px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.32);
+    border-radius: 2px;
+    margin: 8px auto 2px;
   }
 }
 
