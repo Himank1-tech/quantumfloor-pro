@@ -776,7 +776,17 @@ async def produce_full_video():
         for i, scene in enumerate(SCENES):
             sid = scene["id"]
             scene_target_dur = durations[sid]
+            scene_final_mp4 = os.path.join(TEMP_DIR, f"{sid}_synced.mp4")
+
+            # Check if scene was already encoded in temp
+            if os.path.exists(scene_final_mp4) and os.path.getsize(scene_final_mp4) > 100000:
+                print(f"  ⏩ Scene {sid} already encoded ({os.path.getsize(scene_final_mp4)/(1024*1024):.2f} MB), skipping capture...")
+                encoded_scene_videos.append(scene_final_mp4)
+                continue
+
             scene_rec_dir = os.path.join(TEMP_DIR, f"rec_{sid}")
+            if os.path.exists(scene_rec_dir):
+                shutil.rmtree(scene_rec_dir, ignore_errors=True)
             os.makedirs(scene_rec_dir, exist_ok=True)
 
             context = await browser.new_context(
@@ -792,15 +802,23 @@ async def produce_full_video():
 
             page = await context.new_page()
 
-            # Pre-Roll Hydration Gate: Ensure UI, Canvas, and Quotes are 100% loaded before scene actions begin
+            # Pre-Roll Hydration Gate with Retries: Ensure UI, Canvas, and Quotes are 100% loaded before scene actions begin
             t_rec_start = asyncio.get_event_loop().time()
-            await page.goto(BASE_URL, wait_until="domcontentloaded", timeout=40000)
-            await page.wait_for_selector("#app", timeout=25000)
-            await page.wait_for_selector("canvas", timeout=25000)
-            # Wait for quotes to be populated in DOM
-            await page.wait_for_function("() => document.body.innerText.includes('RELIANCE') && document.body.innerText.includes('TCS')", timeout=25000)
-            # Settle pause to ensure chart canvas has rendered first paint
-            await asyncio.sleep(2.5)
+            page_loaded = False
+            for attempt in range(3):
+                try:
+                    await page.goto(BASE_URL, wait_until="domcontentloaded", timeout=45000)
+                    await page.wait_for_selector("#app", state="attached", timeout=35000)
+                    await page.wait_for_selector("canvas", timeout=35000)
+                    await page.wait_for_function("() => document.body.innerText.includes('QUANTUM')", timeout=35000)
+                    await asyncio.sleep(2.5)
+                    page_loaded = True
+                    break
+                except Exception as ex:
+                    print(f"  ⚠️ Pre-roll attempt {attempt+1} warning: {ex}. Retrying...")
+                    await asyncio.sleep(2.0)
+            if not page_loaded:
+                raise RuntimeError(f"Failed to load page for {sid}")
 
             pre_roll_dur = asyncio.get_event_loop().time() - t_rec_start
 
@@ -817,7 +835,6 @@ async def produce_full_video():
             raw_webm = os.path.join(scene_rec_dir, webm_files[0])
 
             # Encode scene video to 1080p 60fps H.264 muxed with synchronized audio, trimming pre-roll hydration
-            scene_final_mp4 = os.path.join(TEMP_DIR, f"{sid}_synced.mp4")
             audio_track = audio_files[sid]
 
             print(f"  🎬 Encoding {sid} to 1080p60 H.264 (trimming {pre_roll_dur:.2f}s pre-roll hydration)...")
