@@ -64,6 +64,7 @@ class BacktestReport(BaseModel):
     avg_risk_reward: float
     trades: List[SimulatedTrade]
     equity_curve: List[EquityPoint]
+    candles: List[Candle] = []
 
 
 class ReplayStepResult(BaseModel):
@@ -271,6 +272,7 @@ class BacktestEngine:
             avg_risk_reward=2.2,
             trades=trades,
             equity_curve=equity_curve,
+            candles=candles,
         )
 
     async def get_replay_step(self, symbol: str, timeframe: str = "15M", step_index: int = 25) -> ReplayStepResult:

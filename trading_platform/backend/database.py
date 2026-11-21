@@ -8,6 +8,7 @@ IPO applications, wealth SIP executions, and enterprise audit logs.
 
 import os
 import json
+import uuid
 import datetime
 import logging
 from typing import Dict, List, Any, Optional
@@ -294,12 +295,54 @@ class Database:
                 event_type VARCHAR(64) NOT NULL,
                 details TEXT NOT NULL,
                 state VARCHAR(32) NOT NULL
+            );""",
+
+            # 13. Registered User Sessions
+            """CREATE TABLE IF NOT EXISTS user_sessions (
+                session_id VARCHAR(64) PRIMARY KEY,
+                user_id VARCHAR(64) NOT NULL,
+                username VARCHAR(64) NOT NULL,
+                email VARCHAR(128) NOT NULL,
+                role VARCHAR(32) NOT NULL,
+                ip_address VARCHAR(64) DEFAULT '127.0.0.1',
+                user_agent TEXT,
+                created_at VARCHAR(64) NOT NULL,
+                expires_at VARCHAR(64) NOT NULL
+            );""",
+
+            # 14. Real Per-User Encrypted Broker Credentials Vault
+            f"""CREATE TABLE IF NOT EXISTS broker_credentials (
+                id {id_type},
+                user_id VARCHAR(64) NOT NULL,
+                broker_name VARCHAR(64) NOT NULL,
+                encrypted_api_key TEXT NOT NULL,
+                encrypted_secret TEXT NOT NULL,
+                api_key_masked VARCHAR(64) NOT NULL,
+                secret_masked VARCHAR(64) NOT NULL,
+                is_connected INTEGER DEFAULT 1,
+                environment VARCHAR(32) DEFAULT 'LIVE',
+                updated_at VARCHAR(64) NOT NULL,
+                UNIQUE(user_id, broker_name)
             );"""
         ]
 
         with self.engine.begin() as conn:
             for stmt in ddl_statements:
                 conn.execute(text(stmt))
+
+        # Seamless schema migrations for existing users table
+        user_alterations = [
+            ("name", "VARCHAR(128) DEFAULT ''"),
+            ("last_login_at", "VARCHAR(64)"),
+            ("login_count", "INTEGER DEFAULT 1"),
+            ("ip_address", "VARCHAR(64) DEFAULT '127.0.0.1'"),
+        ]
+        with self.engine.begin() as conn:
+            for col_name, col_def in user_alterations:
+                try:
+                    conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_def};"))
+                except Exception:
+                    pass
 
     def _seed_historical_analytics(self) -> None:
         """Seed 60 days of realistic institutional equity curve if empty."""
@@ -386,6 +429,11 @@ class Database:
                         text("""
                             INSERT OR REPLACE INTO trades (trade_id, order_id, symbol, asset_class, side, quantity, price, pnl, fee, slippage, timestamp)
                             VALUES (:trade_id, :order_id, :symbol, :asset_class, :side, :quantity, :price, :pnl, :fee, :slippage, :timestamp);
+                        """),
+                        trade_params
+                    )
+                    conn.execute(
+                        text("""
                             INSERT OR REPLACE INTO trade_history (trade_id, order_id, symbol, asset_class, side, quantity, price, pnl, fee, slippage, timestamp)
                             VALUES (:trade_id, :order_id, :symbol, :asset_class, :side, :quantity, :price, :pnl, :fee, :slippage, :timestamp);
                         """),
@@ -394,12 +442,6 @@ class Database:
 
     def _seed_default_users(self) -> None:
         """Seed default admin and trader credentials and vault keys if not present."""
-        with self.engine.connect() as conn:
-            res = conn.execute(text("SELECT COUNT(*) as c FROM users")).mappings().fetchone()
-            cnt = res["c"] if res else 0
-            if cnt > 0:
-                return
-
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         admin_pwd = hash_password("Admin@QuantumFloor2026")
         trader_pwd = hash_password("Trader@12345")
@@ -410,28 +452,114 @@ class Database:
         oanda_enc_sec = encrypt_secret("oanda_account_id_001_882910")
 
         with self.engine.begin() as conn:
-            # Users
+            # Users: Admin Portal (himankbatra2005@gmail.com), Institutional Admin, Trader, and Demo
             users_data = [
-                {"uid": "USR-ADMIN-01", "un": "admin", "em": "admin@quantumfloor.institutional", "pw": admin_pwd, "role": "ADMIN", "mode": "LONG_TERM_WEALTH", "totp": 1, "created": now},
-                {"uid": "USR-TRADER-01", "un": "trader1", "em": "trader@quantumfloor.institutional", "pw": trader_pwd, "role": "TRADER", "mode": "AUTONOMOUS_TRADING", "totp": 0, "created": now},
+                {
+                    "uid": "USR-ADMIN-HB",
+                    "name": "Himank Batra (Admin Lead)",
+                    "un": "himankbatra",
+                    "em": "himankbatra2005@gmail.com",
+                    "pw": admin_pwd,
+                    "role": "ADMIN",
+                    "mode": "AUTONOMOUS_TRADING",
+                    "totp": 1,
+                    "created": now,
+                    "count": 14,
+                    "last": now,
+                    "ip": "103.21.244.1"
+                },
+                {
+                    "uid": "USR-ADMIN-01",
+                    "name": "Institutional Admin",
+                    "un": "admin",
+                    "em": "admin@quantumfloor.institutional",
+                    "pw": admin_pwd,
+                    "role": "ADMIN",
+                    "mode": "LONG_TERM_WEALTH",
+                    "totp": 1,
+                    "created": now,
+                    "count": 32,
+                    "last": now,
+                    "ip": "103.21.244.0"
+                },
+                {
+                    "uid": "USR-TRADER-01",
+                    "name": "Senior Quant Trader",
+                    "un": "trader1",
+                    "em": "trader@quantumfloor.institutional",
+                    "pw": trader_pwd,
+                    "role": "TRADER",
+                    "mode": "AUTONOMOUS_TRADING",
+                    "totp": 0,
+                    "created": now,
+                    "count": 8,
+                    "last": now,
+                    "ip": "49.37.158.42"
+                },
+                {
+                    "uid": "USR-DEMO-01",
+                    "name": "Guest Demo Trader",
+                    "un": "trader_demo",
+                    "em": "demo@quantumfloor.institutional",
+                    "pw": trader_pwd,
+                    "role": "TRADER",
+                    "mode": "AUTONOMOUS_TRADING",
+                    "totp": 0,
+                    "created": now,
+                    "count": 5,
+                    "last": now,
+                    "ip": "157.34.120.91"
+                },
             ]
             for u in users_data:
                 if self.is_postgres:
                     conn.execute(
                         text("""
-                            INSERT INTO users (user_id, username, email, password_hash, role, investment_mode, totp_enabled, created_at)
-                            VALUES (:uid, :un, :em, :pw, :role, :mode, :totp, :created)
-                            ON CONFLICT (username) DO NOTHING;
+                            INSERT INTO users (user_id, name, username, email, password_hash, role, investment_mode, totp_enabled, created_at, last_login_at, login_count, ip_address)
+                            VALUES (:uid, :name, :un, :em, :pw, :role, :mode, :totp, :created, :last, :count, :ip)
+                            ON CONFLICT (username) DO UPDATE SET
+                                name = EXCLUDED.name,
+                                email = EXCLUDED.email,
+                                role = EXCLUDED.role,
+                                last_login_at = EXCLUDED.last_login_at,
+                                login_count = EXCLUDED.login_count,
+                                ip_address = EXCLUDED.ip_address;
                         """),
                         u
                     )
                 else:
                     conn.execute(
                         text("""
-                            INSERT OR IGNORE INTO users (user_id, username, email, password_hash, role, investment_mode, totp_enabled, created_at)
-                            VALUES (:uid, :un, :em, :pw, :role, :mode, :totp, :created);
+                            INSERT OR REPLACE INTO users (user_id, name, username, email, password_hash, role, investment_mode, totp_enabled, created_at, last_login_at, login_count, ip_address)
+                            VALUES (:uid, :name, :un, :em, :pw, :role, :mode, :totp, :created, :last, :count, :ip);
                         """),
                         u
+                    )
+
+            # Seed sample initial sessions for admin and trader
+            sessions_seed = [
+                ("SES-ADMIN-01", "USR-ADMIN-HB", "himankbatra", "himankbatra2005@gmail.com", "ADMIN", "103.21.244.1", "QuantumFloor-Terminal-Desktop", now, now),
+                ("SES-ADMIN-02", "USR-ADMIN-01", "admin", "admin@quantumfloor.institutional", "ADMIN", "103.21.244.0", "QuantumFloor-Institutional-Core", now, now),
+                ("SES-TRD-01", "USR-TRADER-01", "trader1", "trader@quantumfloor.institutional", "TRADER", "49.37.158.42", "Mozilla/5.0 (Windows NT 10.0)", now, now),
+            ]
+            for s in sessions_seed:
+                s_params = {"sid": s[0], "uid": s[1], "un": s[2], "em": s[3], "r": s[4], "ip": s[5], "ua": s[6], "ca": s[7], "ea": s[8]}
+                if self.is_postgres:
+                    conn.execute(
+                        text("""
+                            INSERT INTO user_sessions (session_id, user_id, username, email, role, ip_address, user_agent, created_at, expires_at)
+                            VALUES (:sid, :uid, :un, :em, :r, :ip, :ua, :ca, :ea)
+                            ON CONFLICT (session_id) DO NOTHING;
+                        """),
+                        s_params
+                    )
+                else:
+                    conn.execute(
+                        text("""
+                            INSERT OR IGNORE INTO user_sessions (session_id, user_id, username, email, role, ip_address, user_agent, created_at, expires_at)
+                            VALUES (:sid, :uid, :un, :em, :r, :ip, :ua, :ca, :ea);
+                        """),
+                        s_params
                     )
 
             # Vault keys
@@ -466,7 +594,19 @@ class Database:
                         text("""
                             INSERT OR REPLACE INTO encrypted_keys (user_id, broker_name, encrypted_api_key, encrypted_secret, api_key_masked, secret_masked, is_connected, environment, updated_at)
                             VALUES (:uid, :bname, :k, :s, :mk, :ms, :conn, :env, :updated);
+                        """),
+                        v_params
+                    )
+                    conn.execute(
+                        text("""
                             INSERT OR REPLACE INTO broker_vault (user_id, broker_name, encrypted_api_key, encrypted_secret, api_key_masked, secret_masked, is_connected, environment, updated_at)
+                            VALUES (:uid, :bname, :k, :s, :mk, :ms, :conn, :env, :updated);
+                        """),
+                        v_params
+                    )
+                    conn.execute(
+                        text("""
+                            INSERT OR REPLACE INTO broker_credentials (user_id, broker_name, encrypted_api_key, encrypted_secret, api_key_masked, secret_masked, is_connected, environment, updated_at)
                             VALUES (:uid, :bname, :k, :s, :mk, :ms, :conn, :env, :updated);
                         """),
                         v_params
@@ -757,20 +897,98 @@ class Database:
 
         return qf_user
 
-    def create_user(self, user_id: str, username: str, email: str, password_hash: str, role: str, mode: str) -> Dict[str, Any]:
+    def create_user(
+        self,
+        user_id: str,
+        username: str,
+        email: str,
+        password_hash: str,
+        role: str,
+        mode: str,
+        name: Optional[str] = None,
+        ip_address: str = "127.0.0.1"
+    ) -> Dict[str, Any]:
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        full_name = name or username
         with self.engine.begin() as conn:
             conn.execute(
                 text("""
-                    INSERT INTO users (user_id, username, email, password_hash, role, investment_mode, totp_enabled, created_at)
-                    VALUES (:uid, :un, :em, :pw, :role, :mode, 0, :created)
+                    INSERT INTO users (user_id, name, username, email, password_hash, role, investment_mode, totp_enabled, created_at, last_login_at, login_count, ip_address)
+                    VALUES (:uid, :name, :un, :em, :pw, :role, :mode, 0, :created, :last, 1, :ip)
                 """),
                 {
-                    "uid": user_id, "un": username, "em": email, "pw": password_hash,
-                    "role": role, "mode": mode, "created": now
+                    "uid": user_id, "name": full_name, "un": username, "em": email, "pw": password_hash,
+                    "role": role, "mode": mode, "created": now, "last": now, "ip": ip_address
                 }
             )
         return self.get_user_by_id(user_id) or {}
+
+    def record_user_session(
+        self,
+        user_id: str,
+        username: str,
+        email: str,
+        role: str,
+        ip_address: str = "127.0.0.1",
+        user_agent: str = "QuantumFloor-Terminal"
+    ) -> str:
+        """Record verified user login in user_sessions and increment login activity."""
+        session_id = f"SES-{uuid.uuid4().hex[:8].upper()}"
+        now_ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        exp_ts = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)).isoformat()
+        
+        with self.engine.begin() as conn:
+            conn.execute(
+                text("""
+                    INSERT INTO user_sessions (session_id, user_id, username, email, role, ip_address, user_agent, created_at, expires_at)
+                    VALUES (:sid, :uid, :un, :em, :r, :ip, :ua, :ca, :ea)
+                """),
+                {
+                    "sid": session_id,
+                    "uid": user_id,
+                    "un": username,
+                    "em": email,
+                    "r": role,
+                    "ip": ip_address,
+                    "ua": user_agent,
+                    "ca": now_ts,
+                    "ea": exp_ts,
+                }
+            )
+            conn.execute(
+                text("""
+                    UPDATE users 
+                    SET login_count = COALESCE(login_count, 0) + 1,
+                        last_login_at = :last_login,
+                        ip_address = :ip
+                    WHERE user_id = :uid OR username = :un
+                """),
+                {"last_login": now_ts, "ip": ip_address, "uid": user_id, "un": username}
+            )
+        return session_id
+
+    def get_registered_users_admin(self) -> List[Dict[str, Any]]:
+        """Admin-only query returning all registered users and live activity telemetry."""
+        with self.engine.connect() as conn:
+            rows = conn.execute(
+                text("""
+                    SELECT 
+                        u.user_id,
+                        COALESCE(u.name, u.username) as name,
+                        u.username,
+                        u.email,
+                        u.role,
+                        u.investment_mode,
+                        COALESCE(u.login_count, 1) as login_count,
+                        COALESCE(u.last_login_at, u.created_at) as last_login_at,
+                        COALESCE(u.ip_address, '127.0.0.1') as ip_address,
+                        u.created_at,
+                        (SELECT COUNT(*) FROM encrypted_keys k WHERE k.user_id = u.user_id AND k.is_connected = 1) as connected_brokers
+                    FROM users u
+                    ORDER BY u.created_at DESC
+                """)
+            ).mappings().fetchall()
+            return [dict(r) for r in rows]
 
     def update_user_mode(self, user_id: str, mode: str) -> None:
         with self.engine.begin() as conn:
@@ -815,6 +1033,16 @@ class Database:
                             is_connected = EXCLUDED.is_connected,
                             environment = EXCLUDED.environment,
                             updated_at = EXCLUDED.updated_at;
+                        INSERT INTO broker_credentials (user_id, broker_name, encrypted_api_key, encrypted_secret, api_key_masked, secret_masked, is_connected, environment, updated_at)
+                        VALUES (:uid, :bname, :k, :s, :mk, :ms, :conn, :env, :updated)
+                        ON CONFLICT (user_id, broker_name) DO UPDATE SET
+                            encrypted_api_key = EXCLUDED.encrypted_api_key,
+                            encrypted_secret = EXCLUDED.encrypted_secret,
+                            api_key_masked = EXCLUDED.api_key_masked,
+                            secret_masked = EXCLUDED.secret_masked,
+                            is_connected = EXCLUDED.is_connected,
+                            environment = EXCLUDED.environment,
+                            updated_at = EXCLUDED.updated_at;
                     """),
                     params
                 )
@@ -823,7 +1051,19 @@ class Database:
                     text("""
                         INSERT OR REPLACE INTO encrypted_keys (user_id, broker_name, encrypted_api_key, encrypted_secret, api_key_masked, secret_masked, is_connected, environment, updated_at)
                         VALUES (:uid, :bname, :k, :s, :mk, :ms, :conn, :env, :updated);
+                    """),
+                    params
+                )
+                conn.execute(
+                    text("""
                         INSERT OR REPLACE INTO broker_vault (user_id, broker_name, encrypted_api_key, encrypted_secret, api_key_masked, secret_masked, is_connected, environment, updated_at)
+                        VALUES (:uid, :bname, :k, :s, :mk, :ms, :conn, :env, :updated);
+                    """),
+                    params
+                )
+                conn.execute(
+                    text("""
+                        INSERT OR REPLACE INTO broker_credentials (user_id, broker_name, encrypted_api_key, encrypted_secret, api_key_masked, secret_masked, is_connected, environment, updated_at)
                         VALUES (:uid, :bname, :k, :s, :mk, :ms, :conn, :env, :updated);
                     """),
                     params

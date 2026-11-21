@@ -35,15 +35,8 @@ class StateStore {
   public activeTab: 'INDIAN_EQUITY' | 'FOREX' = 'INDIAN_EQUITY';
   public autoTradingEnabled: boolean = true;
 
-  // User & Auth
-  public currentUser: UserProfile | null = {
-    user_id: 'USR-ADMIN-01',
-    username: 'admin',
-    email: 'admin@quantumfloor.institutional',
-    role: 'ADMIN',
-    investment_mode: 'AUTONOMOUS_TRADING',
-    totp_enabled: true,
-  };
+  // User & Auth - Defaults to unauthenticated (Never auto-login as ADMIN!)
+  public currentUser: UserProfile | null = null;
 
   // Floor Data
   public quotes: Map<string, Quote> = new Map();

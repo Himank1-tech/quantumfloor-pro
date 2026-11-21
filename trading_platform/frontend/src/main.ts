@@ -248,10 +248,12 @@ async function bootstrap() {
         user_id: 'USR-OAUTH',
         username: oauthName || (oauthEmail ? oauthEmail.split('@')[0] : 'Trader'),
         email: oauthEmail || 'trader@institutional.com',
-        role: 'ADMIN',
+        role: oauthEmail === 'himankbatra2005@gmail.com' ? 'ADMIN' : 'TRADER',
         investment_mode: 'AUTONOMOUS_TRADING',
         totp_enabled: false,
       };
+    } else {
+      store.currentUser = null;
     }
     store.vaultKeys = vaultKeys;
     store.auditLogs = auditLogs;

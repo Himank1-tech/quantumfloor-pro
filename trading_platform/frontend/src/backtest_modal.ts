@@ -212,7 +212,7 @@ export class BacktestModal {
       ]);
 
       this.currentReport = report;
-      this.currentCandles = candles && candles.length > 0 ? candles : [];
+      this.currentCandles = candles && candles.length > 0 ? candles : (report.candles || []);
       this.maxStepIndex = Math.max(1, (this.currentReport.equity_curve.length > 0 ? this.currentReport.equity_curve.length - 1 : 100));
       this.currentStepIndex = Math.min(30, this.maxStepIndex);
       this.renderReport(this.currentReport);

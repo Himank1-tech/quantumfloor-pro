@@ -359,10 +359,13 @@ export interface SIPExecutionRecord {
 export interface UserProfile {
   user_id: string;
   username: string;
+  name?: string;
   email: string;
   role: 'ADMIN' | 'PORTFOLIO_MANAGER' | 'TRADER' | 'INVESTOR' | 'VIEWER';
   investment_mode: 'AUTONOMOUS_TRADING' | 'LONG_TERM_WEALTH';
   totp_enabled: boolean;
+  last_login_at?: string;
+  login_count?: number;
 }
 
 export interface BrokerKeyVaultItem {
@@ -596,8 +599,19 @@ export async function fetchSIPHistory(): Promise<SIPExecutionRecord[]> {
   return res.json();
 }
 
-export async function fetchCurrentUser(): Promise<UserProfile> {
-  const res = await fetch(`${API_BASE}/auth/me`, { headers: getAuthHeaders() });
+export async function fetchCurrentUser(): Promise<UserProfile | null> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/me`, { headers: getAuthHeaders() });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchAdminRegisteredUsers(): Promise<{ users: any[]; total_users: number }> {
+  const res = await fetch(`${API_BASE}/admin/users`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch registered users');
   return res.json();
 }
 
@@ -1260,15 +1274,20 @@ export interface BacktestReport {
   final_equity: number;
   net_profit: number;
   net_return_pct: number;
+  net_return?: number;
   total_trades: number;
   winning_trades: number;
   losing_trades: number;
   win_rate_pct: number;
+  win_rate?: number;
   profit_factor: number;
+  sharpe_ratio?: number;
   max_drawdown_pct: number;
+  max_drawdown?: number;
   avg_risk_reward: number;
   trades: SimulatedTrade[];
   equity_curve: EquityPoint[];
+  candles?: any[];
 }
 
 export interface SIPProjectionYear {

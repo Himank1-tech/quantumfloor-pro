@@ -597,25 +597,25 @@ body {
 }
 
 /* ==========================================================================
-   4. Primary 68% / 32% Workspace Grid
+   4. Primary Dominant Workspace Grid (70% Chart Dominance)
    ========================================================================== */
 .primary-workspace-grid {
   display: grid;
-  grid-template-columns: 68% 32%;
-  gap: 20px;
+  grid-template-columns: minmax(0, 2.35fr) minmax(320px, 1fr);
+  gap: 12px;
   align-items: start;
 }
 
 .workspace-left-column {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 10px;
 }
 
 .workspace-right-column {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
 }
 
 /* Common Card Containers */
@@ -670,6 +670,10 @@ body {
 .superchart-card {
   display: flex;
   flex-direction: column;
+  margin: 0;
+}
+.blotter-tabbed-card {
+  margin: 0;
 }
 
 .superchart-header-bar {
@@ -883,10 +887,10 @@ body {
   animation: tick-flash-red 0.75s ease-out;
 }
 
-/* Canvas Container */
+/* Canvas Container - Dominant Trading Floor Plot */
 .chart-canvas-wrapper {
-  height: 540px;
-  min-height: 540px;
+  height: 640px;
+  min-height: 640px;
   width: 100%;
   position: relative;
   background: #ffffff;
@@ -3135,8 +3139,8 @@ body {
   }
 
   .chart-canvas-wrapper {
-    height: 480px;
-    min-height: 400px;
+    height: 460px;
+    min-height: 460px;
   }
 
   .main-content-area {
@@ -3358,8 +3362,8 @@ body {
   }
 
   .chart-canvas-wrapper {
-    height: 360px;
-    min-height: 320px;
+    height: 460px;
+    min-height: 420px;
   }
 
   /* Multi-Agent Debate Vertical Stacking */
@@ -3659,7 +3663,7 @@ body {
   letter-spacing: 0.5px;
 }
 
-.replay-btn {
+.chart-replay-bar .replay-btn {
   width: 26px;
   height: 26px;
   display: flex;
@@ -3674,10 +3678,141 @@ body {
   transition: all 0.15s ease;
 }
 
-.replay-btn:hover {
+.chart-replay-bar .replay-btn:hover {
   background: #EFF6FF;
   border-color: #3B82F6;
   color: #2563EB;
+}
+
+/* Backtest Lab Multi-Day Bar-by-Bar Replay Toolbar Suite */
+.replay-toolbar-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  margin-bottom: 16px;
+}
+
+.replay-left-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.replay-icon {
+  font-size: 16px;
+}
+
+.replay-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #0F172A;
+}
+
+.step-counter {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #2563EB;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.replay-buttons-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.replay-buttons-group .replay-btn,
+.backtest-replay-controls .replay-btn,
+.replay-toolbar-card .replay-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  padding: 8px 14px !important;
+  border-radius: 8px !important;
+  border: 1px solid #CBD5E1 !important;
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  width: auto !important;
+  height: auto !important;
+  min-height: 34px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.replay-buttons-group .replay-btn:hover,
+.backtest-replay-controls .replay-btn:hover,
+.replay-toolbar-card .replay-btn:hover {
+  background: #F1F5F9 !important;
+  border-color: #2563EB !important;
+  color: #2563EB !important;
+}
+
+.replay-buttons-group .replay-btn.active,
+.replay-buttons-group .replay-btn.highlight,
+.replay-toolbar-card .replay-btn.highlight {
+  background: #EFF6FF !important;
+  border-color: #2563EB !important;
+  color: #2563EB !important;
+}
+
+.replay-speed-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.replay-speed-group label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748B;
+  margin-right: 2px;
+}
+
+.speed-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  padding: 6px 12px !important;
+  border-radius: 6px !important;
+  border: 1px solid #CBD5E1 !important;
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  font-weight: 600 !important;
+  font-size: 11px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.speed-chip:hover {
+  border-color: #2563EB !important;
+  color: #2563EB !important;
+  background: #F8FAFC !important;
+}
+
+.speed-chip.active {
+  background: #2563EB !important;
+  color: #FFFFFF !important;
+  border-color: #2563EB !important;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25) !important;
 }
 
 .replay-speed-select {

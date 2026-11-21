@@ -1177,6 +1177,41 @@ export class PriceChartEngine {
     }
     ctx.restore();
 
+    // 1d. Volume Histogram Sub-Pane (Rendered in bottom 16% of expanded canvas)
+    const volAreaH = chartH * 0.16;
+    const volBaseY = pTop + chartH;
+    let maxVol = 1000;
+    for (let i = 0; i < candleCount; i++) {
+      const v = visibleCandles[i].volume || 0;
+      if (v > maxVol) maxVol = v;
+    }
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(226, 232, 240, 0.6)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 4]);
+    ctx.beginPath();
+    ctx.moveTo(pLeft, volBaseY - volAreaH);
+    ctx.lineTo(pLeft + chartW, volBaseY - volAreaH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = '600 8px "JetBrains Mono", monospace';
+    ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('VOL', pLeft + 6, volBaseY - volAreaH + 4);
+
+    for (let i = 0; i < candleCount; i++) {
+      const c = visibleCandles[i];
+      const x = getX(i);
+      const isUp = c.close >= c.open;
+      const vol = c.volume || 0;
+      const vH = Math.max(2, (vol / maxVol) * volAreaH);
+      ctx.fillStyle = isUp ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)';
+      ctx.fillRect(x - barWidth / 2, volBaseY - vH, barWidth, vH);
+    }
+    ctx.restore();
+
     // 2. Draw Candlesticks (Emerald #10B981 & Crimson #EF4444)
     for (let i = 0; i < candleCount; i++) {
       const c = visibleCandles[i];
@@ -1365,7 +1400,7 @@ export class PriceChartEngine {
         const isUp = hc.close >= hc.open;
         const chg = hc.close - hc.open;
         const chgPct = (chg / (hc.open || 1)) * 100;
-        const ttW = 440;
+        const ttW = 510;
         const ttH = 22;
         const ttX = pLeft + 8;
         const ttY = pTop - 22;
@@ -1385,28 +1420,34 @@ export class PriceChartEngine {
 
         ctx.font = '10px "JetBrains Mono", monospace';
         ctx.fillStyle = '#64748B';
-        ctx.fillText('O', ttX + 130, ttY + 11);
+        ctx.fillText('O', ttX + 124, ttY + 11);
         ctx.fillStyle = isUp ? '#10B981' : '#EF4444';
-        ctx.fillText(hc.open.toFixed(2), ttX + 142, ttY + 11);
+        ctx.fillText(hc.open.toFixed(2), ttX + 135, ttY + 11);
 
         ctx.fillStyle = '#64748B';
-        ctx.fillText('H', ttX + 195, ttY + 11);
+        ctx.fillText('H', ttX + 185, ttY + 11);
         ctx.fillStyle = isUp ? '#10B981' : '#EF4444';
-        ctx.fillText(hc.high.toFixed(2), ttX + 207, ttY + 11);
+        ctx.fillText(hc.high.toFixed(2), ttX + 196, ttY + 11);
 
         ctx.fillStyle = '#64748B';
-        ctx.fillText('L', ttX + 260, ttY + 11);
+        ctx.fillText('L', ttX + 246, ttY + 11);
         ctx.fillStyle = isUp ? '#10B981' : '#EF4444';
-        ctx.fillText(hc.low.toFixed(2), ttX + 272, ttY + 11);
+        ctx.fillText(hc.low.toFixed(2), ttX + 257, ttY + 11);
 
         ctx.fillStyle = '#64748B';
-        ctx.fillText('C', ttX + 325, ttY + 11);
+        ctx.fillText('C', ttX + 307, ttY + 11);
         ctx.fillStyle = isUp ? '#10B981' : '#EF4444';
-        ctx.fillText(hc.close.toFixed(2), ttX + 337, ttY + 11);
+        ctx.fillText(hc.close.toFixed(2), ttX + 318, ttY + 11);
 
         ctx.fillStyle = isUp ? '#10B981' : '#EF4444';
         const chgSign = chg >= 0 ? '+' : '';
-        ctx.fillText(`${chgSign}${chg.toFixed(2)} (${chgSign}${chgPct.toFixed(2)}%)`, ttX + 382, ttY + 11);
+        ctx.fillText(`${chgSign}${chg.toFixed(2)} (${chgSign}${chgPct.toFixed(2)}%)`, ttX + 368, ttY + 11);
+
+        ctx.fillStyle = '#64748B';
+        ctx.fillText('Vol', ttX + 444, ttY + 11);
+        ctx.fillStyle = '#0F172A';
+        const volStr = hc.volume ? (hc.volume > 1e6 ? `${(hc.volume / 1e6).toFixed(1)}M` : hc.volume > 1e3 ? `${(hc.volume / 1e3).toFixed(0)}K` : `${hc.volume}`) : '—';
+        ctx.fillText(volStr, ttX + 468, ttY + 11);
 
         ctx.restore();
       }

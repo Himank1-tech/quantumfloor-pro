@@ -97,11 +97,19 @@ export function renderNavbar(): string {
         </button>
 
         <!-- User Profile Badge -->
-        <button class="nav-user-chip" id="btn-nav-user" title="${u?.email || 'Account & Security Settings'}">
-          <span class="user-avatar-circle" style="${u?.email?.includes('@gmail.com') ? 'background:#EA4335;' : ''}">${(u?.username || 'AD').substring(0, 2).toUpperCase()}</span>
-          <span class="user-name">${u?.username || 'admin'}</span>
-          <span class="user-role-badge">${u?.email ? u.email : (u?.role || 'ADMIN')}</span>
-        </button>
+        ${u ? `
+          <button class="nav-user-chip" id="btn-nav-user" title="${u.email || 'Account & Security Settings'}">
+            <span class="user-avatar-circle" style="${u.email?.includes('@gmail.com') ? 'background:#EA4335;' : ''}">${(u.username || 'AD').substring(0, 2).toUpperCase()}</span>
+            <span class="user-name">${u.username}</span>
+            <span class="user-role-badge">${u.role}</span>
+          </button>
+        ` : `
+          <button class="nav-user-chip unauthenticated" id="btn-nav-user" title="Sign In or Connect Broker" style="background:#FFFFFF; border:1px solid #CBD5E1; color:#0F172A; box-shadow:0 1px 3px rgba(15,23,42,0.08);">
+            <span class="user-avatar-circle" style="background:#2563EB; color:#FFFFFF; font-weight:700;">🔑</span>
+            <span class="user-name" style="color:#0F172A; font-weight:700;">Sign In</span>
+            <span class="user-role-badge" style="background:#F1F5F9; color:#475569; border:1px solid #CBD5E1;">GUEST</span>
+          </button>
+        `}
 
         <!-- Hamburger Menu Button (Mobile & Tablet < 1024px) -->
         <button class="btn-hamburger-menu" id="btn-mobile-menu" aria-label="Open Navigation Menu" title="Open Terminal Menu">
@@ -195,14 +203,25 @@ export function renderNavbar(): string {
 
         <!-- User Profile & Session Footer in Drawer -->
         <div class="mobile-drawer-footer">
-          <button class="drawer-user-card" id="mobile-btn-user" title="Open Security & Account Panel">
-            <span class="user-avatar-circle" style="${u?.email?.includes('@gmail.com') ? 'background:#EA4335;' : ''}">${(u?.username || 'AD').substring(0, 2).toUpperCase()}</span>
-            <div class="drawer-user-info">
-              <span class="drawer-username">${u?.username || 'admin'}</span>
-              <span class="drawer-useremail">${u?.email || 'admin@quantumfloor.institutional'}</span>
-            </div>
-            <span class="drawer-role-badge">${u?.role || 'ADMIN'}</span>
-          </button>
+          ${u ? `
+            <button class="drawer-user-card" id="mobile-btn-user" title="Open Security & Account Panel">
+              <span class="user-avatar-circle" style="${u.email?.includes('@gmail.com') ? 'background:#EA4335;' : ''}">${(u.username || 'AD').substring(0, 2).toUpperCase()}</span>
+              <div class="drawer-user-info">
+                <span class="drawer-username">${u.username}</span>
+                <span class="drawer-useremail">${u.email}</span>
+              </div>
+              <span class="drawer-role-badge">${u.role}</span>
+            </button>
+          ` : `
+            <button class="drawer-user-card unauthenticated" id="mobile-btn-user" title="Sign In or Connect Broker" style="background:#FFFFFF; border:1px solid #CBD5E1;">
+              <span class="user-avatar-circle" style="background:#2563EB; color:#fff;">🔑</span>
+              <div class="drawer-user-info">
+                <span class="drawer-username" style="color:#0F172A; font-weight:700;">Sign In</span>
+                <span class="drawer-useremail" style="color:#64748B;">Access Account & Brokers</span>
+              </div>
+              <span class="drawer-role-badge">GUEST</span>
+            </button>
+          `}
           <div class="drawer-session-status">
             <span class="status-indicator-dot pulse-emerald"></span>
             <span id="mobile-ist-clock">--:--:-- IST</span>
@@ -263,36 +282,51 @@ export function updateNavbarState(): void {
 
   // Update User Profile Badge
   const userChip = document.getElementById('btn-nav-user');
-  if (userChip && u) {
+  if (userChip) {
     const avatar = userChip.querySelector('.user-avatar-circle') as HTMLElement;
     const name = userChip.querySelector('.user-name') as HTMLElement;
     const role = userChip.querySelector('.user-role-badge') as HTMLElement;
-    if (avatar) {
-      avatar.innerText = (u.username || 'AD').substring(0, 2).toUpperCase();
-      if (u.email?.includes('@gmail.com')) {
-        avatar.style.background = '#EA4335';
+    if (u) {
+      if (avatar) {
+        avatar.innerText = (u.username || 'AD').substring(0, 2).toUpperCase();
+        avatar.style.background = u.email?.includes('@gmail.com') ? '#EA4335' : '#2563EB';
       }
+      if (name) name.innerText = u.username || 'User';
+      if (role) role.innerText = u.role || 'TRADER';
+    } else {
+      if (avatar) {
+        avatar.innerText = '🔑';
+        avatar.style.background = '#2563EB';
+      }
+      if (name) name.innerText = 'Sign In';
+      if (role) role.innerText = 'GUEST';
     }
-    if (name) name.innerText = u.username || 'admin';
-    if (role) role.innerText = u.email || u.role || 'ADMIN';
   }
 
   // Update Drawer User Profile
   const drawerUserCard = document.getElementById('mobile-btn-user');
-  if (drawerUserCard && u) {
+  if (drawerUserCard) {
     const drawerAvatar = drawerUserCard.querySelector('.user-avatar-circle') as HTMLElement;
     const drawerName = drawerUserCard.querySelector('.drawer-username') as HTMLElement;
     const drawerEmail = drawerUserCard.querySelector('.drawer-useremail') as HTMLElement;
     const drawerRole = drawerUserCard.querySelector('.drawer-role-badge') as HTMLElement;
-    if (drawerAvatar) {
-      drawerAvatar.innerText = (u.username || 'AD').substring(0, 2).toUpperCase();
-      if (u.email?.includes('@gmail.com')) {
-        drawerAvatar.style.background = '#EA4335';
+    if (u) {
+      if (drawerAvatar) {
+        drawerAvatar.innerText = (u.username || 'AD').substring(0, 2).toUpperCase();
+        drawerAvatar.style.background = u.email?.includes('@gmail.com') ? '#EA4335' : '#2563EB';
       }
+      if (drawerName) drawerName.innerText = u.username || 'User';
+      if (drawerEmail) drawerEmail.innerText = u.email || '';
+      if (drawerRole) drawerRole.innerText = u.role || 'TRADER';
+    } else {
+      if (drawerAvatar) {
+        drawerAvatar.innerText = '🔑';
+        drawerAvatar.style.background = '#2563EB';
+      }
+      if (drawerName) drawerName.innerText = 'Sign In';
+      if (drawerEmail) drawerEmail.innerText = 'Access Account & Brokers';
+      if (drawerRole) drawerRole.innerText = 'GUEST';
     }
-    if (drawerName) drawerName.innerText = u.username || 'admin';
-    if (drawerEmail) drawerEmail.innerText = u.email || 'admin@quantumfloor.institutional';
-    if (drawerRole) drawerRole.innerText = u.role || 'ADMIN';
   }
 }
 
