@@ -621,7 +621,11 @@ export class PriceChartEngine {
       if (this.activeDragHandle) {
         const item = this.drawings.find(d => d.id === this.activeDragHandle!.drawingId);
         if (item) {
-          if (item.type === 'long_position' || item.type === 'short_position') {
+          if (item.type === 'horizontal') {
+            item.points[0].price = price;
+          } else if (item.type === 'vertical') {
+            item.points[0].barIdx = actualIdx;
+          } else if (item.type === 'long_position' || item.type === 'short_position') {
             if (this.activeDragHandle.handleType === 'tp') {
               item.tpPrice = price;
             } else if (this.activeDragHandle.handleType === 'sl') {
@@ -764,18 +768,192 @@ export class PriceChartEngine {
     });
   }
 
-  // ==================== HIT TESTING ====================
+  // ==================== HIT TESTING & GEOMETRY ====================
+
+  private getGeometry() {
+    const rect = this.canvas.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    const pTop = 26;
+    const pBottom = 28;
+    const pLeft = width < 500 ? 6 : 14;
+    const pRight = width < 500 ? 58 : 86;
+    const chartW = Math.max(1, width - pLeft - pRight);
+    const chartH = Math.max(1, height - pTop - pBottom);
+
+    const effectiveCandles = this.replayActive
+      ? this.candles.slice(0, Math.max(1, this.replayIndex + 1))
+      : this.candles;
+
+    const totalBars = effectiveCandles.length;
+    const count = Math.max(1, Math.min(totalBars, this.visibleBars));
+    const maxPan = Math.max(0, totalBars - count);
+    const currentPan = Math.max(0, Math.min(maxPan, this.panOffset));
+    const endIdx = totalBars - currentPan;
+    const startIdx = Math.max(0, endIdx - count);
+    const visibleCandles = effectiveCandles.slice(startIdx, endIdx);
+
+    const prices: number[] = [];
+    for (const c of visibleCandles) {
+      prices.push(c.low, c.high, c.open, c.close);
+    }
+    prices.sort((a, b) => a - b);
+    const pLowIdx = Math.floor(prices.length * 0.02);
+    const pHighIdx = Math.min(prices.length - 1, Math.floor(prices.length * 0.98));
+    let minPrice = prices[pLowIdx] ?? prices[0] ?? 100;
+    let maxPrice = prices[pHighIdx] ?? prices[prices.length - 1] ?? 110;
+    if (!isFinite(minPrice) || !isFinite(maxPrice) || minPrice === maxPrice) {
+      minPrice = (prices[0] || 100) * 0.99;
+      maxPrice = (prices[prices.length - 1] || 110) * 1.01;
+    }
+    const rawRange = maxPrice - minPrice;
+    const pad = (rawRange > 0 ? rawRange : maxPrice * 0.05) * 0.10;
+    minPrice -= pad;
+    maxPrice += pad;
+    const priceRange = maxPrice - minPrice || 1;
+    const step = chartW / count;
+
+    const getY = (p: number) => pTop + ((maxPrice - p) / priceRange) * chartH;
+    const getX = (relIdx: number) => pLeft + relIdx * step + step / 2;
+
+    return {
+      width, height, pTop, pBottom, pLeft, pRight, chartW, chartH,
+      minPrice, maxPrice, priceRange, step, startIdx, count, totalBars,
+      getX, getY, effectiveCandles, visibleCandles
+    };
+  }
+
+  private distToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
+    const l2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+    if (l2 === 0) return Math.hypot(px - x1, py - y1);
+    let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1)));
+  }
 
   private hitTestDrawing(x: number, y: number): DrawingItem | null {
-    // Quick proximity search across drawings
-    return this.drawings.length > 0 ? this.drawings[this.drawings.length - 1] : null;
+    if (this.drawings.length === 0) return null;
+    const g = this.getGeometry();
+
+    for (let i = this.drawings.length - 1; i >= 0; i--) {
+      const d = this.drawings[i];
+      if (!d.points || d.points.length === 0) continue;
+
+      if (d.type === 'horizontal') {
+        const yLine = g.getY(d.points[0].price);
+        if (Math.abs(y - yLine) <= 12 && x >= g.pLeft && x <= g.pLeft + g.chartW) {
+          return d;
+        }
+      } else if (d.type === 'vertical') {
+        const xLine = g.getX(d.points[0].barIdx - g.startIdx);
+        if (Math.abs(x - xLine) <= 12 && y >= g.pTop && y <= g.pTop + g.chartH) {
+          return d;
+        }
+      } else if (d.type === 'long_position' || d.type === 'short_position') {
+        const rel1 = d.points[0].barIdx - g.startIdx;
+        const rel2 = d.points[1] ? (d.points[1].barIdx - g.startIdx) : (rel1 + 18);
+        const x1 = g.getX(rel1);
+        const x2 = Math.max(x1 + 60, g.getX(rel2));
+        const entry = d.entryPrice || d.points[0].price;
+        const tp = d.tpPrice || (d.type === 'long_position' ? entry * 1.025 : entry * 0.975);
+        const sl = d.slPrice || (d.type === 'long_position' ? entry * 0.988 : entry * 1.012);
+        const yEntry = g.getY(entry);
+        const yTP = g.getY(tp);
+        const ySL = g.getY(sl);
+        const minY = Math.min(yEntry, yTP, ySL) - 8;
+        const maxY = Math.max(yEntry, yTP, ySL) + 8;
+        if (x >= x1 - 8 && x <= x2 + 8 && y >= minY && y <= maxY) {
+          return d;
+        }
+      } else if (d.type === 'fib' && d.points.length >= 2) {
+        const rel1 = d.points[0].barIdx - g.startIdx;
+        const rel2 = d.points[1].barIdx - g.startIdx;
+        const x1 = Math.min(g.getX(rel1), g.getX(rel2));
+        const x2 = Math.max(g.getX(rel1), g.getX(rel2)) + 60;
+        const y1 = g.getY(d.points[0].price);
+        const y2 = g.getY(d.points[1].price);
+        const minY = Math.min(y1, y2) - 10;
+        const maxY = Math.max(y1, y2) + 10;
+        if (x >= x1 - 8 && x <= x2 + 8 && y >= minY && y <= maxY) {
+          return d;
+        }
+      } else if (d.points.length >= 2) {
+        const x1 = g.getX(d.points[0].barIdx - g.startIdx);
+        const y1 = g.getY(d.points[0].price);
+        const x2 = g.getX(d.points[1].barIdx - g.startIdx);
+        const y2 = g.getY(d.points[1].price);
+        if (d.type === 'price_range') {
+          const minX = Math.min(x1, x2) - 6;
+          const maxX = Math.max(x1, x2) + 6;
+          const minY = Math.min(y1, y2) - 6;
+          const maxY = Math.max(y1, y2) + 6;
+          if (x >= minX && x <= maxX && y >= minY && y <= maxY) return d;
+        } else if (d.type === 'date_range') {
+          const minX = Math.min(x1, x2) - 6;
+          const maxX = Math.max(x1, x2) + 6;
+          if (x >= minX && x <= maxX && y >= g.pTop && y <= g.pTop + g.chartH) return d;
+        } else {
+          const dist = this.distToSegment(x, y, x1, y1, x2, y2);
+          if (dist <= 12) return d;
+        }
+      } else if (d.points.length === 1) {
+        const px = g.getX(d.points[0].barIdx - g.startIdx);
+        const py = g.getY(d.points[0].price);
+        if (Math.hypot(x - px, y - py) <= 15) return d;
+      }
+    }
+    return null;
   }
 
   private hitTestHandle(x: number, y: number): { drawingId: string; handleType: string } | null {
     if (!this.selectedDrawingId) return null;
     const item = this.drawings.find(d => d.id === this.selectedDrawingId);
     if (!item) return null;
-    // Default handle hit response for interactive testing
+
+    const g = this.getGeometry();
+    const hitRadius = 12;
+
+    if (item.type === 'long_position' || item.type === 'short_position') {
+      const rel1 = item.points[0].barIdx - g.startIdx;
+      const rel2 = item.points[1] ? (item.points[1].barIdx - g.startIdx) : (rel1 + 18);
+      const x1 = g.getX(rel1);
+      const x2 = Math.max(x1 + 60, g.getX(rel2));
+      const midX = (x1 + x2) / 2;
+      const entry = item.entryPrice || item.points[0].price;
+      const tp = item.tpPrice || (item.type === 'long_position' ? entry * 1.025 : entry * 0.975);
+      const sl = item.slPrice || (item.type === 'long_position' ? entry * 0.988 : entry * 1.012);
+
+      const yEntry = g.getY(entry);
+      const yTP = g.getY(tp);
+      const ySL = g.getY(sl);
+
+      if (Math.hypot(x - midX, y - yTP) <= hitRadius) return { drawingId: item.id, handleType: 'tp' };
+      if (Math.hypot(x - midX, y - ySL) <= hitRadius) return { drawingId: item.id, handleType: 'sl' };
+      if (Math.hypot(x - midX, y - yEntry) <= hitRadius) return { drawingId: item.id, handleType: 'entry' };
+      if (Math.hypot(x - x2, y - yEntry) <= hitRadius) return { drawingId: item.id, handleType: 'right' };
+      return null;
+    }
+
+    if (item.type === 'horizontal' && item.points[0]) {
+      const midX = g.pLeft + g.chartW / 2;
+      const py = g.getY(item.points[0].price);
+      if (Math.hypot(x - midX, y - py) <= hitRadius || Math.abs(y - py) <= hitRadius) {
+        return { drawingId: item.id, handleType: '0' };
+      }
+      return null;
+    }
+
+    if (item.points && item.points.length >= 2) {
+      for (let i = 0; i < Math.min(item.points.length, 3); i++) {
+        const pt = item.points[i];
+        const px = g.getX(pt.barIdx - g.startIdx);
+        const py = g.getY(pt.price);
+        if (Math.hypot(x - px, y - py) <= hitRadius) {
+          return { drawingId: item.id, handleType: String(i) };
+        }
+      }
+    }
+
     return null;
   }
 
@@ -1176,6 +1354,16 @@ export class PriceChartEngine {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(d.points[0].price.toFixed(1), g.pLeft + g.chartW + 30, y);
+
+        // Center draggable handle when selected
+        if (d.id === this.selectedDrawingId) {
+          const midX = g.pLeft + g.chartW / 2;
+          ctx.fillStyle = '#FFFFFF';
+          ctx.strokeStyle = d.color || '#2563EB';
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([]);
+          ctx.beginPath(); ctx.arc(midX, y, 5.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        }
       }
 
       else if (d.type === 'vertical' && d.points[0]) {
@@ -1185,6 +1373,15 @@ export class PriceChartEngine {
         ctx.moveTo(x, g.pTop);
         ctx.lineTo(x, g.pTop + g.chartH);
         ctx.stroke();
+
+        if (d.id === this.selectedDrawingId) {
+          const midY = g.pTop + g.chartH / 2;
+          ctx.fillStyle = '#FFFFFF';
+          ctx.strokeStyle = d.color || '#2563EB';
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([]);
+          ctx.beginPath(); ctx.arc(x, midY, 5.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        }
       }
 
       else if (d.type === 'trendline' && d.points.length >= 2) {
@@ -1204,9 +1401,75 @@ export class PriceChartEngine {
         if (d.id === this.selectedDrawingId) {
           ctx.fillStyle = '#FFFFFF';
           ctx.strokeStyle = d.color;
-          ctx.lineWidth = 2;
-          ctx.beginPath(); ctx.arc(x1, y1, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-          ctx.beginPath(); ctx.arc(x2, y2, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([]);
+          ctx.beginPath(); ctx.arc(x1, y1, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.arc(x2, y2, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        }
+      }
+
+      else if (d.type === 'ray' && d.points.length >= 2) {
+        const rel1 = d.points[0].barIdx - g.startIdx;
+        const rel2 = d.points[1].barIdx - g.startIdx;
+        const x1 = g.getX(rel1);
+        const y1 = g.getY(d.points[0].price);
+        const x2 = g.getX(rel2);
+        const y2 = g.getY(d.points[1].price);
+
+        const slope = (x2 !== x1) ? (y2 - y1) / (x2 - x1) : 0;
+        const targetX = x2 >= x1 ? (g.pLeft + g.chartW) : g.pLeft;
+        const targetY = y1 + slope * (targetX - x1);
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(targetX, targetY);
+        ctx.stroke();
+
+        if (d.id === this.selectedDrawingId) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.strokeStyle = d.color;
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([]);
+          ctx.beginPath(); ctx.arc(x1, y1, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.arc(x2, y2, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        }
+      }
+
+      else if (d.type === 'channel' && d.points.length >= 2) {
+        const rel1 = d.points[0].barIdx - g.startIdx;
+        const rel2 = d.points[1].barIdx - g.startIdx;
+        const x1 = g.getX(rel1);
+        const y1 = g.getY(d.points[0].price);
+        const x2 = g.getX(rel2);
+        const y2 = g.getY(d.points[1].price);
+        const offset = 26;
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1 + offset);
+        ctx.lineTo(x2, y2 + offset);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(37, 99, 235, 0.08)';
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.lineTo(x2, y2 + offset);
+        ctx.lineTo(x1, y1 + offset);
+        ctx.closePath();
+        ctx.fill();
+
+        if (d.id === this.selectedDrawingId) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.strokeStyle = d.color;
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([]);
+          ctx.beginPath(); ctx.arc(x1, y1, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.arc(x2, y2, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         }
       }
 
@@ -1219,25 +1482,48 @@ export class PriceChartEngine {
         const p2 = d.points[1].price;
         const diff = p2 - p1;
 
-        const levels = [0, 0.236, 0.382, 0.5, 0.618, 0.705, 0.786, 1.0];
+        const levels = [
+          { val: 0.0, label: '0.0' },
+          { val: 0.236, label: '0.236' },
+          { val: 0.382, label: '0.382' },
+          { val: 0.5, label: '0.5' },
+          { val: 0.618, label: '0.618' },
+          { val: 0.705, label: '0.705 (OTE)' },
+          { val: 0.786, label: '0.786' },
+          { val: 1.0, label: '1.0' },
+        ];
         const oteTop = g.getY(p1 + diff * 0.786);
         const oteBot = g.getY(p1 + diff * 0.618);
 
-        // Shaded OTE Zone
-        ctx.fillStyle = 'rgba(16, 185, 129, 0.12)';
+        // Shaded OTE Zone (0.618 to 0.786)
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.16)';
         ctx.fillRect(x1, Math.min(oteTop, oteBot), x2 - x1, Math.abs(oteTop - oteBot));
 
         for (const lvl of levels) {
-          const lPrice = p1 + diff * lvl;
+          const lPrice = p1 + diff * lvl.val;
           const y = g.getY(lPrice);
-          ctx.strokeStyle = lvl === 0.705 ? '#10B981' : '#64748B';
-          ctx.lineWidth = lvl === 0.705 ? 1.5 : 1;
-          ctx.setLineDash([3, 3]);
+          const isOTE = lvl.val === 0.705 || lvl.val === 0.618 || lvl.val === 0.786;
+          ctx.strokeStyle = isOTE ? '#10B981' : '#64748B';
+          ctx.lineWidth = isOTE ? 1.5 : 1;
+          ctx.setLineDash(isOTE ? [] : [3, 3]);
           ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
 
-          ctx.fillStyle = lvl === 0.705 ? '#10B981' : '#64748B';
-          ctx.font = '9px "JetBrains Mono", monospace';
-          ctx.fillText(`Fib ${lvl} (${lPrice.toFixed(1)})`, x2 - 50, y - 3);
+          ctx.fillStyle = isOTE ? '#10B981' : '#64748B';
+          ctx.font = isOTE ? 'bold 9px "JetBrains Mono", monospace' : '9px "JetBrains Mono", monospace';
+          ctx.fillText(`Fib ${lvl.label} (${lPrice.toFixed(1)})`, x2 - 70, y - 3);
+        }
+
+        if (d.id === this.selectedDrawingId) {
+          const px1 = g.getX(d.points[0].barIdx - g.startIdx);
+          const py1 = g.getY(d.points[0].price);
+          const px2 = g.getX(d.points[1].barIdx - g.startIdx);
+          const py2 = g.getY(d.points[1].price);
+          ctx.fillStyle = '#FFFFFF';
+          ctx.strokeStyle = '#2563EB';
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([]);
+          ctx.beginPath(); ctx.arc(px1, py1, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.arc(px2, py2, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         }
       }
 
@@ -1291,6 +1577,117 @@ export class PriceChartEngine {
         ctx.fill();
         ctx.fillStyle = '#FFFFFF';
         ctx.fillText(statText, x1 + 10, yEntry + 3);
+
+        // Draggable handles for Long / Short Position
+        if (d.id === this.selectedDrawingId) {
+          const midX = (x1 + x2) / 2;
+          const drawHandle = (hx: number, hy: number, strokeColor: string) => {
+            ctx.save();
+            ctx.fillStyle = '#FFFFFF';
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.arc(hx, hy, 5.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+          };
+          drawHandle(midX, yTP, '#10B981'); // TP handle (Green)
+          drawHandle(midX, ySL, '#EF4444'); // SL handle (Red)
+          drawHandle(midX, yEntry, '#2563EB'); // Entry handle (Blue)
+          drawHandle(x2, yEntry, '#0F172A'); // Width handle (Slate)
+        }
+      }
+
+      else if (d.type === 'price_range' && d.points.length >= 2) {
+        const rel1 = d.points[0].barIdx - g.startIdx;
+        const rel2 = d.points[1].barIdx - g.startIdx;
+        const x1 = g.getX(rel1);
+        const y1 = g.getY(d.points[0].price);
+        const x2 = g.getX(rel2);
+        const y2 = g.getY(d.points[1].price);
+
+        const left = Math.min(x1, x2);
+        const right = Math.max(x1, x2);
+        const top = Math.min(y1, y2);
+        const bot = Math.max(y1, y2);
+        const p1 = d.points[0].price;
+        const p2 = d.points[1].price;
+        const pDiff = p2 - p1;
+        const pPct = p1 > 0 ? (pDiff / p1) * 100 : 0;
+        const pips = Math.abs(pDiff) * 10;
+        const bars = Math.abs(d.points[1].barIdx - d.points[0].barIdx);
+
+        ctx.fillStyle = 'rgba(37, 99, 235, 0.12)';
+        ctx.fillRect(left, top, right - left, bot - top);
+        ctx.strokeStyle = '#2563EB';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 3]);
+        ctx.strokeRect(left, top, right - left, bot - top);
+        ctx.setLineDash([]);
+
+        const badgeText = `${pDiff >= 0 ? '+' : ''}${pDiff.toFixed(2)} (${pPct.toFixed(2)}%) | ${pips.toFixed(0)}p | ${bars}b`;
+        ctx.font = 'bold 9px "JetBrains Mono", monospace';
+        const bW = ctx.measureText(badgeText).width + 12;
+        const bX = left + (right - left) / 2 - bW / 2;
+        const bY = top + (bot - top) / 2 - 9;
+        ctx.fillStyle = '#0F172A';
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(bX, bY, bW, 18, 4) : ctx.rect(bX, bY, bW, 18);
+        ctx.fill();
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(badgeText, bX + 6, bY + 12);
+
+        if (d.id === this.selectedDrawingId) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.strokeStyle = '#2563EB';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath(); ctx.arc(x1, y1, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.arc(x2, y2, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        }
+      }
+
+      else if (d.type === 'date_range' && d.points.length >= 2) {
+        const rel1 = d.points[0].barIdx - g.startIdx;
+        const rel2 = d.points[1].barIdx - g.startIdx;
+        const x1 = g.getX(rel1);
+        const x2 = g.getX(rel2);
+        const left = Math.min(x1, x2);
+        const right = Math.max(x1, x2);
+        const bars = Math.abs(d.points[1].barIdx - d.points[0].barIdx);
+
+        ctx.fillStyle = 'rgba(100, 116, 139, 0.12)';
+        ctx.fillRect(left, g.pTop, right - left, g.chartH);
+        ctx.strokeStyle = '#64748B';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 3]);
+        ctx.strokeRect(left, g.pTop, right - left, g.chartH);
+        ctx.setLineDash([]);
+
+        const midY = g.pTop + g.chartH / 2;
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(left, midY); ctx.lineTo(right, midY); ctx.stroke();
+
+        const badgeText = `${bars} bars`;
+        ctx.font = 'bold 9px "JetBrains Mono", monospace';
+        const bW = ctx.measureText(badgeText).width + 12;
+        const bX = left + (right - left) / 2 - bW / 2;
+        ctx.fillStyle = '#0F172A';
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(bX, midY - 9, bW, 18, 4) : ctx.rect(bX, midY - 9, bW, 18);
+        ctx.fill();
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(badgeText, bX + 6, midY + 3);
+
+        if (d.id === this.selectedDrawingId) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.strokeStyle = '#64748B';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath(); ctx.arc(left, midY, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.arc(right, midY, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        }
       }
 
       else if (d.type === 'brush' && d.points.length >= 2) {

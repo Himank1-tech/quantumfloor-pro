@@ -278,13 +278,16 @@ export function renderFloorPanel(): string {
                 <button class="tv-tool-btn" data-tool="price_range" title="Price Range / Pips">↕</button>
                 <button class="tv-tool-btn" data-tool="date_range" title="Date Range / Bars">↔</button>
                 <div class="tv-tool-sep"></div>
-                <button class="tv-tool-btn" data-tool="brush" title="Brush Drawing">✎</button>
+                <button class="tv-tool-btn" data-tool="brush" title="Freehand Brush">✎</button>
                 <button class="tv-tool-btn" data-tool="text" title="Text Annotation (Alt+A)">T</button>
                 <button class="tv-tool-btn" data-tool="eraser" title="Eraser">🧹</button>
                 <div class="tv-tool-sep"></div>
+                <button class="tv-tool-btn" id="btn-draw-zoom-in" title="Zoom In (+)">➕</button>
+                <button class="tv-tool-btn" id="btn-draw-zoom-out" title="Zoom Out (-)">➖</button>
+                <div class="tv-tool-sep"></div>
                 <button class="tv-tool-btn" id="btn-draw-magnet" title="Magnet Mode (Snap to OHLC)">🧲</button>
                 <button class="tv-tool-btn" id="btn-draw-visibility" title="Hide/Show Drawings">👁️</button>
-                <button class="tv-tool-btn" id="btn-draw-clear" title="Clear All Drawings">🗑️</button>
+                <button class="tv-tool-btn" id="btn-draw-clear" title="Clear All Drawings (Trash)">🗑️</button>
               </div>
 
               <!-- Right Main Area: Canvas + Floating Bars + Bottom Date Presets -->
@@ -907,6 +910,14 @@ function setupEventListeners(): void {
       const tool = target.dataset.tool || 'crosshair';
       priceChart?.setTool(tool);
     });
+  });
+
+  // Left Drawing Toolbar Zoom In / Out
+  document.getElementById('btn-draw-zoom-in')?.addEventListener('click', () => {
+    priceChart?.zoomIn();
+  });
+  document.getElementById('btn-draw-zoom-out')?.addEventListener('click', () => {
+    priceChart?.zoomOut();
   });
 
   // Magnet mode toggle
