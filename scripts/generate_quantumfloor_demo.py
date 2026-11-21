@@ -711,7 +711,7 @@ async def record_scene_video(context, page, scene, target_duration: float):
         await page.evaluate("() => { const b = document.getElementById('btn-chart-replay-exit'); if(b) b.click(); }")
         await asyncio.sleep(1.0)
 
-        # Smooth drag pan across historical candles
+        # Smooth drag pan across historical candles (multi-day backward and forward)
         if chart_el:
             box = await chart_el.bounding_box()
             if box:
@@ -719,11 +719,21 @@ async def record_scene_video(context, page, scene, target_duration: float):
                 cy = box["y"] + box["height"] * 0.5
                 await page.evaluate("() => { const b = document.querySelector('.tv-tool-btn[data-tool=\"crosshair\"]'); if(b) b.click(); }")
                 await smooth_move(cx, cy)
-                await page.mouse.move(cx, cy)
                 await page.mouse.down()
-                await page.mouse.move(cx - 180, cy, steps=8)
+                await page.mouse.move(cx - 240, cy, steps=10)
                 await page.mouse.up()
-                await asyncio.sleep(1.0)
+                await asyncio.sleep(0.8)
+                await page.mouse.down()
+                await page.mouse.move(cx + 120, cy, steps=8)
+                await page.mouse.up()
+                await asyncio.sleep(0.8)
+
+        # Left Toolbar: Demonstrate Zoom In & Zoom Out buttons
+        await smooth_move(22, 580, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-draw-zoom-in'); if(b) b.click(); }")
+        await asyncio.sleep(0.6)
+        await page.evaluate("() => { const b = document.getElementById('btn-draw-zoom-out'); if(b) b.click(); }")
+        await asyncio.sleep(0.6)
 
     elif sid == "scene4":
         # Scene 4: Live Global Forex & Pip/Lot Risk Calculator
