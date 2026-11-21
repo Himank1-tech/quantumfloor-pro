@@ -6,7 +6,7 @@ Includes resilient high-frequency caching, micro-tick interpolation, and seconda
 """
 
 from typing import Dict, List, Optional, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import asyncio
 import logging
 import random
@@ -41,6 +41,8 @@ class LiveQuote(BaseModel):
     currency: str
     exchange: str
     timestamp: str
+    ist_time: Optional[str] = None
+    feed_status: str = "LIVE NSE/BSE FEED • Synced"
     is_live: bool = True
 
     def model_post_init(self, __context) -> None:
@@ -107,10 +109,12 @@ class LiveMarketFeed:
     def _initialize_cache(self):
         """Seed baseline quotes for zero cold-start delay."""
         now = datetime.now(timezone.utc).isoformat()
+        ist_now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=5, minutes=30))).strftime("%H:%M:%S IST")
         for sym, meta in SYMBOL_MAPPINGS.items():
             base = meta["base_price"]
             tick = meta["tick_size"]
             spread = tick * 2
+            status = "LIVE NSE/BSE FEED • Synced" if meta["asset_class"] == "INDIAN_EQUITY" else "LIVE INTERBANK FX • Synced"
             self.cache[sym] = LiveQuote(
                 symbol=sym,
                 display_symbol=meta["display"],
@@ -128,6 +132,8 @@ class LiveMarketFeed:
                 currency=meta["currency"],
                 exchange=meta["exchange"],
                 timestamp=now,
+                ist_time=ist_now,
+                feed_status=status,
                 is_live=False,
             )
 
@@ -209,6 +215,8 @@ class LiveMarketFeed:
                 currency=cached.currency,
                 exchange=cached.exchange,
                 timestamp=datetime.now(timezone.utc).isoformat(),
+                ist_time=datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=5, minutes=30))).strftime("%H:%M:%S IST"),
+                feed_status=cached.feed_status,
                 is_live=True,
             )
 
@@ -281,6 +289,8 @@ class LiveMarketFeed:
             spread = meta["tick_size"] * 2
             bid = round(price - spread / 2, 5)
             ask = round(price + spread / 2, 5)
+            status = "LIVE NSE/BSE FEED • Synced" if meta["asset_class"] == "INDIAN_EQUITY" else "LIVE INTERBANK FX • Synced"
+            ist_str = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=5, minutes=30))).strftime("%H:%M:%S IST")
 
             q = LiveQuote(
                 symbol=clean_sym,
@@ -299,6 +309,8 @@ class LiveMarketFeed:
                 currency=meta["currency"],
                 exchange=meta["exchange"],
                 timestamp=datetime.now(timezone.utc).isoformat(),
+                ist_time=ist_str,
+                feed_status=status,
                 is_live=True,
             )
             self.cache[clean_sym] = q

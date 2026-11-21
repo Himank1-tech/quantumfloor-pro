@@ -6,8 +6,13 @@ import { store } from '../state';
 import {
   loginUser,
   registerUser,
+  demoLogin,
+  resetPassword,
+  logoutUser,
   switchInvestmentMode,
   saveVaultKey,
+  deleteVaultKey,
+  disconnectVaultBroker,
   fetchVaultKeys,
   fetchAuditLogs,
   verifyBrokerConnection,
@@ -86,6 +91,9 @@ export function renderSecurityPanel(): string {
         <div style="display:flex; align-items:center; gap:8px;">
           <button id="btn-open-login" class="btn-toggle">
             <span>👤 ${u ? u.username.toUpperCase() + ' (' + u.role + ')' : 'LOGIN / SWITCH USER'}</span>
+          </button>
+          <button id="btn-logout-user" class="btn-toggle" style="color:var(--color-red); border-color:rgba(239, 68, 68, 0.4); padding:6px 12px; font-size:11px;">
+            🚪 LOGOUT
           </button>
         </div>
       </div>
@@ -183,11 +191,16 @@ export function renderSecurityPanel(): string {
                 </div>
               </div>
 
-              <div class="broker-card-footer">
+              <div class="broker-card-footer" style="display:flex; justify-content:space-between; align-items:center;">
                 <span class="broker-latency font-mono">⚡ Latency: <strong>${b.latency}</strong></span>
-                <button class="btn-test-broker-card font-mono" data-broker-name="${b.name}">
-                  TEST PING
-                </button>
+                <div style="display:flex; gap:6px;">
+                  <button class="btn-test-broker-card font-mono" data-broker-name="${b.name}">
+                    TEST PING
+                  </button>
+                  <button class="btn-disconnect-broker font-mono" data-broker-name="${b.name}" style="background:transparent; border:1px solid rgba(239, 68, 68, 0.4); color:var(--color-red); padding:3px 8px; border-radius:4px; font-size:10px; cursor:pointer;" title="Revoke broker credentials">
+                    REVOKE
+                  </button>
+                </div>
               </div>
             </div>
           `).join('')}
@@ -285,6 +298,11 @@ export function renderSecurityPanel(): string {
             <button class="modal-close-btn" id="btn-close-auth-modal">✕</button>
           </div>
           <div style="padding:16px;">
+            <!-- 1-Click Demo Trader Login -->
+            <button id="btn-demo-trader-login" class="btn-primary" style="width:100%; justify-content:center; padding:10px; margin-bottom:12px; background:linear-gradient(135deg, #0ea5e9, #0284c7); border:none; font-weight:700; color:#fff; border-radius:6px; cursor:pointer; font-size:12px;">
+              ⚡ 1-Click Guest / Demo Trader Login
+            </button>
+
             <!-- Real Google OAuth 2.0 -->
             <div style="margin-bottom:14px;">
               <button id="btn-google-login" class="btn-toggle" style="width:100%; justify-content:center; padding:10px; border-color:var(--color-cyan); color:var(--text-normal); font-weight:600;">
@@ -310,6 +328,20 @@ export function renderSecurityPanel(): string {
             <div style="display:flex; gap:8px;">
               <button id="btn-login-submit" class="btn-primary" style="flex:1; padding:8px;">LOGIN (JWT)</button>
               <button id="btn-register-submit" class="btn-toggle" style="flex:1; padding:8px; justify-content:center;">REGISTER</button>
+            </div>
+
+            <!-- Forgot / Reset Password Toggle & Form -->
+            <div style="margin-top:14px; text-align:center;">
+              <button type="button" id="btn-toggle-reset-pw" style="background:none; border:none; color:var(--color-cyan); font-size:11px; cursor:pointer; text-decoration:underline;">
+                Forgot / Reset Password?
+              </button>
+            </div>
+            <div id="reset-pw-section" style="display:none; margin-top:10px; padding:12px; background:var(--bg-obsidian); border:1px solid var(--border-card); border-radius:6px;">
+              <div style="font-size:11px; font-weight:700; margin-bottom:6px; color:var(--text-normal);">Reset Account Password</div>
+              <input type="text" id="reset-pw-identifier" class="ticket-input" style="width:100%; margin-bottom:6px;" placeholder="Username or Email" />
+              <input type="password" id="reset-pw-new" class="ticket-input" style="width:100%; margin-bottom:8px;" placeholder="New Secure Password" />
+              <button type="button" id="btn-submit-reset-pw" class="btn-primary" style="width:100%; padding:6px; font-size:11px;">Update Password</button>
+              <div id="reset-pw-msg" style="font-size:10px; margin-top:6px; font-family:var(--font-mono);"></div>
             </div>
           </div>
         </div>
@@ -539,6 +571,77 @@ export function setupSecurityEventListeners(): void {
     } catch (err: any) {
       alert(`Registration failed: ${err.message}`);
     }
+  });
+
+  // Demo Trader Login
+  document.getElementById('btn-demo-trader-login')?.addEventListener('click', async () => {
+    try {
+      const res = await demoLogin();
+      store.currentUser = res.user;
+      authModal?.classList.add('hidden');
+      alert(`Authenticated as Demo Trader (${res.user?.username})! Active 24-hr JWT issued.`);
+      store.notify();
+    } catch (err: any) {
+      alert(`Demo login error: ${err.message}`);
+    }
+  });
+
+  // Logout
+  document.getElementById('btn-logout-user')?.addEventListener('click', async () => {
+    await logoutUser();
+    store.currentUser = null;
+    alert('Logged out successfully.');
+    store.notify();
+  });
+
+  // Toggle Password Reset Form
+  document.getElementById('btn-toggle-reset-pw')?.addEventListener('click', () => {
+    const sec = document.getElementById('reset-pw-section');
+    if (sec) sec.style.display = sec.style.display === 'none' ? 'block' : 'none';
+  });
+
+  // Submit Password Reset
+  document.getElementById('btn-submit-reset-pw')?.addEventListener('click', async () => {
+    const ident = (document.getElementById('reset-pw-identifier') as HTMLInputElement)?.value;
+    const newPw = (document.getElementById('reset-pw-new') as HTMLInputElement)?.value;
+    const msg = document.getElementById('reset-pw-msg');
+    if (!ident || !newPw) {
+      if (msg) {
+        msg.style.color = 'var(--color-red)';
+        msg.textContent = 'Please enter both username/email and new password.';
+      }
+      return;
+    }
+    try {
+      await resetPassword(ident, newPw);
+      if (msg) {
+        msg.style.color = 'var(--color-green)';
+        msg.textContent = '✓ Password reset successfully! You can now log in.';
+      }
+    } catch (err: any) {
+      if (msg) {
+        msg.style.color = 'var(--color-red)';
+        msg.textContent = `✗ ${err.message}`;
+      }
+    }
+  });
+
+  // Revoke Broker Credentials
+  document.querySelectorAll('.btn-disconnect-broker').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const target = e.currentTarget as HTMLElement;
+      const bName = target.dataset.brokerName || '';
+      if (confirm(`Revoke and disconnect live credentials for ${bName}?`)) {
+        try {
+          await disconnectVaultBroker(bName);
+          target.textContent = 'REVOKED';
+          target.style.color = 'var(--text-dim)';
+          alert(`Broker ${bName} disconnected and session credentials revoked.`);
+        } catch (err: any) {
+          alert(`Disconnection Error: ${err.message}`);
+        }
+      }
+    });
   });
 
   // 5 Live Broker Card Ping test handlers

@@ -785,6 +785,83 @@ export async function fetchAuditLogs(limit: number = 50): Promise<AuditLogEntry[
   return res.json();
 }
 
+export async function demoLogin(): Promise<any> {
+  const res = await fetch(`${API_BASE}/auth/demo-login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error('Demo login failed');
+  const data = await res.json();
+  if (data.access_token) setAuthToken(data.access_token);
+  return data;
+}
+
+export async function resetPassword(identifier: string, newPassword: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier, new_password: newPassword }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Password reset failed');
+  }
+  return await res.json();
+}
+
+export async function logoutUser(): Promise<any> {
+  setAuthToken(null);
+  await fetch(`${API_BASE}/auth/logout`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  }).catch(() => {});
+}
+
+export async function deleteVaultKey(brokerName: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/auth/vault/keys/${encodeURIComponent(brokerName)}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to delete vault key');
+  return await res.json();
+}
+
+export async function disconnectVaultBroker(brokerName: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/auth/vault/disconnect`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ broker_name: brokerName }),
+  });
+  if (!res.ok) throw new Error('Failed to disconnect broker');
+  return await res.json();
+}
+
+export function downloadTradesCSV(): void {
+  window.location.href = `${API_BASE}/trades/export-csv`;
+}
+
+export async function downloadBacktestCSV(reportData?: any): Promise<void> {
+  if (reportData) {
+    const res = await fetch(`${API_BASE}/backtest/export-csv`, {
+      method: 'POST',
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(reportData),
+    });
+    if (!res.ok) throw new Error('Failed to generate backtest CSV');
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `QuantumFloor_Backtest_${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } else {
+    window.location.href = `${API_BASE}/backtest/export-csv`;
+  }
+}
+
 /**
  * EventSource SSE Streaming Telemetry with automatic reconnection
  */
@@ -1221,7 +1298,7 @@ export async function fetchLiveQuotesPro(): Promise<LiveQuotePro[]> {
   return res.json();
 }
 
-export async function fetchCandlesPro(symbol: string, timeframe: string = '15M', limit: number = 100): Promise<any[]> {
+export async function fetchCandlesPro(symbol: string, timeframe: string = '15M', limit: number = 350): Promise<any[]> {
   const res = await fetch(`${API_BASE}/market/candles?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(timeframe)}&limit=${limit}`);
   if (!res.ok) throw new Error('Failed to fetch candles');
   return res.json();

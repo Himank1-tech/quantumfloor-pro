@@ -22,6 +22,12 @@ export class AICopilotWidget {
     this.container.className = 'copilot-widget minimized';
     document.body.appendChild(this.container);
 
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !this.isMinimized) {
+        this.close();
+      }
+    });
+
     this.initSpeechRecognition();
     this.render();
   }

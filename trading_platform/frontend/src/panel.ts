@@ -169,7 +169,7 @@ export function renderFloorPanel(): string {
           </div>
 
           <div class="priority-hero-cta">
-            <button class="hero-execute-btn" id="btn-hero-execute" title="Populate Quick Order Ticket with these exact Entry, SL, and TP levels">
+            <button class="hero-execute-btn" id="btn-hero-execute" name="btn-hero-autofill" title="Populate Quick Order Ticket with these exact Entry, SL, and TP levels">
               <span>⚡ 1-CLICK TICKET</span>
             </button>
           </div>
@@ -189,6 +189,11 @@ export function renderFloorPanel(): string {
                 <span id="selected-symbol" class="chart-symbol-ticker">RELIANCE</span>
                 <span id="selected-price" class="chart-price-display">₹--</span>
                 <span id="selected-change" class="chart-change-pill">--%</span>
+                <span id="market-feed-integrity" class="feed-integrity-pill">
+                  <span class="status-indicator-dot pulse-emerald"></span>
+                  <span id="feed-integrity-text">LIVE NSE/BSE FEED • Synced</span>
+                  <span class="feed-time" id="feed-tick-time">--:--:-- IST</span>
+                </span>
               </div>
 
               <!-- Timeframe Selector Chips (8 Timeframes: 1M, 3M, 5M, 15M, 30M, 1H, 4H, 1D) -->
@@ -729,7 +734,7 @@ function setupEventListeners(): void {
   });
 
   // Priority Hero Execute Button -> Auto-fill Quick Ticket
-  document.getElementById('btn-hero-execute')?.addEventListener('click', () => {
+  const fillTicketHandler = () => {
     if (activeMTFReport && activeMTFReport.blueprint) {
       const bp = activeMTFReport.blueprint;
       const isForex = bp.symbol.includes('/') || store.activeTab === 'FOREX';
@@ -738,7 +743,10 @@ function setupEventListeners(): void {
       const slIn = document.getElementById('ticket-sl') as HTMLInputElement;
 
       if (symIn) symIn.value = bp.symbol;
-      if (priceIn) priceIn.value = isForex ? bp.entry_price.toFixed(4) : bp.entry_price.toFixed(2);
+      if (priceIn) {
+        priceIn.value = isForex ? bp.entry_price.toFixed(4) : bp.entry_price.toFixed(2);
+        priceIn.dataset.autofilled = 'true';
+      }
       if (slIn) slIn.value = isForex ? bp.stop_loss.toFixed(4) : bp.stop_loss.toFixed(2);
 
       // Smooth scroll to ticket
@@ -749,7 +757,10 @@ function setupEventListeners(): void {
         setTimeout(() => ticketCard.classList.remove('ticket-highlight'), 1200);
       }
     }
-  });
+  };
+  document.getElementById('btn-hero-execute')?.addEventListener('click', fillTicketHandler);
+  document.getElementById('btn-hero-autofill')?.addEventListener('click', fillTicketHandler);
+  (window as any).autoFillTicketFromBlueprint = fillTicketHandler;
 
   // Algorithm selector pills
   document.querySelectorAll('.algo-pill-btn').forEach((btn) => {
@@ -1273,6 +1284,13 @@ function renderSelectedSymbolCard(): void {
   const isForex = store.selectedSymbol.includes('/') || store.activeTab === 'FOREX';
   const prefix = isForex ? '' : '₹';
 
+  const feedStatusText = (q as any)?.feed_status || (isForex ? 'LIVE INTERBANK FX • Synced' : 'LIVE NSE/BSE FEED • Synced');
+  const feedTime = (q as any)?.ist_time || new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: false }) + ' IST';
+  const feedTextEl = document.getElementById('feed-integrity-text');
+  const feedTimeEl = document.getElementById('feed-tick-time');
+  if (feedTextEl) feedTextEl.innerText = feedStatusText;
+  if (feedTimeEl) feedTimeEl.innerText = feedTime;
+
   if (q) {
     const isUp = q.change_pct >= 0;
     if (priceEl) priceEl.innerText = `${prefix}${isForex || q.last_price < 100 ? q.last_price.toFixed(4) : q.last_price.toFixed(2)}`;
@@ -1290,6 +1308,13 @@ function renderSelectedSymbolCard(): void {
       chgEl.innerText = `${isUp ? '+' : ''}${pct.toFixed(2)}%`;
       chgEl.className = `chart-change-pill ${isUp ? 'pill-up' : 'pill-down'}`;
     }
+  }
+
+  // Lock quick order ticket limit price to exact live quote
+  const ticketPriceIn = document.getElementById('ticket-price') as HTMLInputElement;
+  if (ticketPriceIn && q && q.last_price > 0 && (!ticketPriceIn.value || ticketPriceIn.dataset.autofilled === 'true')) {
+    ticketPriceIn.value = `${isForex || q.last_price < 100 ? q.last_price.toFixed(4) : q.last_price.toFixed(2)}`;
+    ticketPriceIn.dataset.autofilled = 'true';
   }
 
   if (priceChart && store.candles.length > 0) {

@@ -884,6 +884,25 @@ class Database:
                 {"c": conn_val, "uid": user_id, "bname": broker_name}
             )
 
+    def delete_broker_key(self, user_id: str, broker_name: str) -> None:
+        with self.engine.begin() as conn:
+            conn.execute(
+                text("DELETE FROM broker_vault WHERE user_id = :uid AND broker_name = :bname"),
+                {"uid": user_id, "bname": broker_name}
+            )
+            conn.execute(
+                text("DELETE FROM encrypted_keys WHERE user_id = :uid AND broker_name = :bname"),
+                {"uid": user_id, "bname": broker_name}
+            )
+
+    def update_user_password(self, email_or_username: str, new_password_hash: str) -> bool:
+        with self.engine.begin() as conn:
+            res = conn.execute(
+                text("UPDATE users SET password_hash = :p WHERE username = :ident OR email = :ident"),
+                {"p": new_password_hash, "ident": email_or_username}
+            )
+            return res.rowcount > 0
+
     def record_audit_log(self, entry: Dict[str, Any]) -> None:
         params = {
             "lid": entry.get("log_id"),

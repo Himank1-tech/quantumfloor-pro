@@ -307,6 +307,48 @@ export class PriceChartEngine {
       ctx.fillText(formatted, pLeft + chartW + 8, y + 3.5);
     }
 
+    // 1b. Render Vertical Dashed Day-Break Separator Lines with Date Labels
+    let lastDateStr = '';
+    const todayDateStr = new Date().toDateString();
+    for (let i = 0; i < candleCount; i++) {
+      const c = visibleCandles[i];
+      const timeVal = c.time || (c as any).timestamp;
+      if (!timeVal) continue;
+      const d = new Date(timeVal);
+      if (isNaN(d.getTime())) continue;
+      const dateStr = d.toDateString();
+
+      // Detect day transition across prior sessions
+      if (lastDateStr && dateStr !== lastDateStr) {
+        const x = pLeft + i * step;
+
+        ctx.save();
+        ctx.strokeStyle = '#CBD5E1';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x, pTop);
+        ctx.lineTo(x, pTop + chartH);
+        ctx.stroke();
+
+        // Date Label pill at top of separator line
+        const isToday = dateStr === todayDateStr;
+        const dayLabel = isToday ? 'Today' : d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+        ctx.font = 'bold 9px "JetBrains Mono", monospace';
+        const labelW = ctx.measureText(dayLabel).width + 8;
+        ctx.fillStyle = isToday ? '#2563EB' : '#64748B';
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(x - labelW / 2, pTop + 4, labelW, 14, 3) : ctx.rect(x - labelW / 2, pTop + 4, labelW, 14);
+        ctx.fill();
+        ctx.fillStyle = '#FFFFFF';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(dayLabel, x, pTop + 11);
+        ctx.restore();
+      }
+      lastDateStr = dateStr;
+    }
+
     // 2. Draw Candlesticks (Emerald #10B981 & Crimson #EF4444)
     for (let i = 0; i < candleCount; i++) {
       const c = visibleCandles[i];
@@ -369,13 +411,13 @@ export class PriceChartEngine {
       ctx.stroke();
     }
 
-    // 4. Draw SMC Overlays
+    // 4. Draw SMC Overlays (Passing startIdx for accurate historical positioning)
     this.smcOverlay.render(ctx, width, height, visibleCandles, minPrice, maxPrice, {
       top: pTop,
       bottom: pBottom,
       left: pLeft,
       right: pRight,
-    });
+    }, startIdx);
 
     // 5. Crosshair & Hover Tooltip
     if (this.hoverIndex !== null && this.candles[this.hoverIndex]) {

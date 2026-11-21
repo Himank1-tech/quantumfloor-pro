@@ -15,7 +15,7 @@ import urllib.parse
 import numpy as np
 import httpx
 
-from fastapi import FastAPI, HTTPException, Query, Body, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, Body, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import StreamingResponse, RedirectResponse
 from sqlalchemy import text
@@ -211,7 +211,7 @@ async def get_single_quote(symbol: str):
 async def get_candles(
     symbol: str = Query(..., description="Ticker symbol"),
     timeframe: str = Query("15M", description="Timeframe: 1M, 3M, 5M, 15M, 30M, 1H, 4H, 1D"),
-    limit: int = 100
+    limit: int = 350
 ):
     try:
         return await historical_candle_loader.get_candles(symbol, timeframe=timeframe, limit=limit)
@@ -484,10 +484,15 @@ def place_manual_order(request: Request, data: Dict[str, Any] = Body(...)):
 # ==================== ENTERPRISE AUTH & RBAC ROUTES ====================
 
 def get_current_user_from_request(request: Request) -> Dict[str, Any]:
-    """Helper to extract user from Authorization header or fallback to default admin."""
+    """Helper to extract user from Authorization header, HttpOnly cookie, or fallback to default admin."""
+    token = None
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split(" ")[1]
+    if not token:
+        token = request.cookies.get("access_token")
+
+    if token:
         token_data = verify_access_token(token)
         if token_data and token_data.username:
             user = db.get_user_by_username(token_data.username)
@@ -495,11 +500,11 @@ def get_current_user_from_request(request: Request) -> Dict[str, Any]:
                 return user
     # Fallback to default active user
     admin = db.get_user_by_username("admin")
-    return admin or {"user_id": "USR-ADMIN-01", "username": "admin", "role": "ADMIN", "investment_mode": "LONG_TERM_WEALTH"}
+    return admin or {"user_id": "USR-ADMIN-01", "username": "admin", "role": "ADMIN", "investment_mode": "AUTONOMOUS_TRADING"}
 
 
 @app.post("/api/auth/register")
-def register_user(data: UserCreate = Body(...)):
+def register_user(response: Response, data: UserCreate = Body(...)):
     existing = db.get_user_by_username(data.username)
     if existing:
         raise HTTPException(status_code=400, detail="Username already exists")
@@ -526,6 +531,7 @@ def register_user(data: UserCreate = Body(...)):
     })
 
     token = create_access_token({"sub": user["user_id"], "username": user["username"], "role": user["role"]})
+    response.set_cookie(key="access_token", value=token, httponly=True, samesite="lax", secure=True, max_age=86400)
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -540,12 +546,13 @@ def register_user(data: UserCreate = Body(...)):
 
 
 @app.post("/api/auth/login")
-def login_user(data: UserLogin = Body(...)):
+def login_user(response: Response, data: UserLogin = Body(...)):
     user = db.get_user_by_username(data.username)
     if not user or not verify_password(data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid username or password credentials")
 
     token = create_access_token({"sub": user["user_id"], "username": user["username"], "role": user["role"]})
+    response.set_cookie(key="access_token", value=token, httponly=True, samesite="lax", secure=True, max_age=86400)
 
     db.record_audit_log({
         "log_id": f"AUD-LOG-{uuid.uuid4().hex[:6].upper()}",
@@ -570,6 +577,73 @@ def login_user(data: UserLogin = Body(...)):
             "totp_enabled": bool(user["totp_enabled"]),
         },
     }
+
+
+@app.post("/api/auth/demo-login")
+def demo_login(response: Response):
+    demo_user = db.get_user_by_username("trader_demo")
+    if not demo_user:
+        demo_user = db.create_user(
+            user_id="USR-DEMO-01",
+            username="trader_demo",
+            email="demo@quantumfloor.institutional",
+            password_hash=hash_password("Demo@12345"),
+            role="TRADER",
+            mode="AUTONOMOUS_TRADING",
+        )
+    token = create_access_token({"sub": demo_user["user_id"], "username": demo_user["username"], "role": demo_user["role"]})
+    response.set_cookie(key="access_token", value=token, httponly=True, samesite="lax", secure=True, max_age=86400)
+    db.record_audit_log({
+        "log_id": f"AUD-DEMO-{uuid.uuid4().hex[:6].upper()}",
+        "user_id": demo_user["user_id"],
+        "username": demo_user["username"],
+        "action": "DEMO_LOGIN",
+        "resource": "SECURITY_GATE",
+        "status": "SUCCESS",
+        "details": {"role": demo_user["role"]},
+    })
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_in_minutes": 1440,
+        "user": demo_user,
+    }
+
+
+@app.post("/api/auth/reset-password")
+def reset_user_password(data: Dict[str, str] = Body(...)):
+    ident = data.get("identifier") or data.get("email") or data.get("username")
+    new_pwd = data.get("new_password") or data.get("password")
+    if not ident or not new_pwd:
+        raise HTTPException(status_code=400, detail="Identifier and new_password are required")
+    new_hash = hash_password(new_pwd)
+    success = db.update_user_password(ident, new_hash)
+    if not success:
+        raise HTTPException(status_code=404, detail="User account not found")
+    db.record_audit_log({
+        "log_id": f"AUD-RST-{uuid.uuid4().hex[:6].upper()}",
+        "user_id": ident,
+        "username": ident,
+        "action": "PASSWORD_RESET",
+        "resource": "SECURITY_GATE",
+        "status": "SUCCESS",
+    })
+    return {"status": "SUCCESS", "message": "Password successfully updated"}
+
+
+@app.post("/api/auth/logout")
+def logout_user(response: Response, request: Request):
+    response.delete_cookie("access_token")
+    user = get_current_user_from_request(request)
+    db.record_audit_log({
+        "log_id": f"AUD-OUT-{uuid.uuid4().hex[:6].upper()}",
+        "user_id": user.get("user_id", "GUEST"),
+        "username": user.get("username", "guest"),
+        "action": "USER_LOGOUT",
+        "resource": "SECURITY_GATE",
+        "status": "SUCCESS",
+    })
+    return {"status": "SUCCESS", "message": "Logged out successfully"}
 
 
 @app.get("/api/auth/me")
@@ -653,6 +727,44 @@ def save_vault_key(request: Request, data: BrokerKeyInput = Body(...)):
         "broker_name": data.broker_name,
         "message": f"Credentials for {data.broker_name} securely encrypted with Fernet AES-128 and vaulted."
     }
+
+
+@app.delete("/api/auth/vault/keys/{broker_name}")
+def delete_vault_key(request: Request, broker_name: str):
+    user = get_current_user_from_request(request)
+    db.delete_broker_key(user["user_id"], broker_name)
+    db.record_audit_log({
+        "log_id": f"AUD-DELKEY-{uuid.uuid4().hex[:6].upper()}",
+        "user_id": user["user_id"],
+        "username": user["username"],
+        "action": "REVOKE_BROKER_KEY_VAULT",
+        "resource": "FERNET_VAULT",
+        "status": "SUCCESS",
+        "details": {"broker": broker_name},
+    })
+    return {
+        "status": "SUCCESS",
+        "message": f"Credentials for {broker_name} successfully revoked and deleted from Vault."
+    }
+
+
+@app.post("/api/auth/vault/disconnect")
+def disconnect_vault_key(request: Request, data: Dict[str, Any] = Body(...)):
+    user = get_current_user_from_request(request)
+    broker_name = data.get("broker_name", "")
+    if not broker_name:
+        raise HTTPException(status_code=400, detail="broker_name is required")
+    db.update_broker_connection_status(user["user_id"], broker_name, False)
+    db.record_audit_log({
+        "log_id": f"AUD-DISC-{uuid.uuid4().hex[:6].upper()}",
+        "user_id": user["user_id"],
+        "username": user["username"],
+        "action": "DISCONNECT_BROKER",
+        "resource": "BROKER_ADAPTER",
+        "status": "SUCCESS",
+        "details": {"broker": broker_name},
+    })
+    return {"status": "SUCCESS", "message": f"{broker_name} disconnected."}
 
 
 @app.post("/api/brokers/verify")
@@ -963,6 +1075,76 @@ async def get_replay_step(
 ):
     step = await backtest_engine.get_replay_step(symbol=symbol, timeframe=timeframe, step_index=step_index)
     return step.model_dump()
+
+
+# ==================== DIRECT CSV EXPORT ROUTES (NO XML/S3 ERROR) ====================
+
+@app.get("/api/trades/export-csv")
+@app.get("/api/storage/export-blotter-csv")
+def download_trade_blotter_csv():
+    import io, csv
+    trades = db.get_trades(limit=500)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Trade ID", "Timestamp", "Symbol", "Side", "Quantity",
+        "Price", "Order Type", "Asset Class", "Status", "Fees", "Slippage"
+    ])
+    for t in trades:
+        writer.writerow([
+            t.get("trade_id", ""),
+            t.get("timestamp", ""),
+            t.get("symbol", ""),
+            t.get("side", ""),
+            t.get("quantity", 0),
+            t.get("price", 0.0),
+            t.get("order_type", "LIMIT"),
+            t.get("asset_class", "EQUITY"),
+            t.get("status", "FILLED"),
+            t.get("fee", 0.0),
+            t.get("slippage", 0.0)
+        ])
+    csv_content = output.getvalue()
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=QuantumFloor_Trades_{ts}.csv"}
+    )
+
+
+@app.get("/api/backtest/export-csv")
+@app.post("/api/backtest/export-csv")
+async def download_backtest_csv(data: Optional[Dict[str, Any]] = Body(None)):
+    import io, csv
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Trade ID", "Entry Time", "Exit Time", "Side", "Entry Price",
+        "Exit Price", "Stop Loss", "Take Profit", "PnL", "Return %", "Exit Reason"
+    ])
+    trades = (data.get("trades") if data else None) or []
+    for t in trades:
+        writer.writerow([
+            t.get("trade_id", ""),
+            t.get("entry_time", ""),
+            t.get("exit_time", ""),
+            t.get("side", ""),
+            t.get("entry_price", 0.0),
+            t.get("exit_price", 0.0),
+            t.get("stop_loss", 0.0),
+            t.get("take_profit", 0.0),
+            t.get("pnl", 0.0),
+            t.get("return_pct", 0.0),
+            t.get("exit_reason", "")
+        ])
+    csv_content = output.getvalue()
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=QuantumFloor_Backtest_{ts}.csv"}
+    )
 
 
 # ==================== NEON OBJECT STORAGE & EXPORT ROUTES ====================

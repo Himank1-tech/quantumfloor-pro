@@ -169,7 +169,8 @@ export class SMCOverlayRenderer {
     candles: any[],
     minPrice: number,
     maxPrice: number,
-    padding: { top: number; bottom: number; left: number; right: number }
+    padding: { top: number; bottom: number; left: number; right: number },
+    startIdx: number = 0
   ) {
     if (!candles || candles.length === 0 || maxPrice <= minPrice) return;
 
@@ -177,10 +178,11 @@ export class SMCOverlayRenderer {
     const chartH = height - padding.top - padding.bottom;
     const priceRange = maxPrice - minPrice;
 
-    // Coordinate conversion helpers
-    const getX = (index: number): number => {
+    // Coordinate conversion helpers with startIdx offset for multi-day panning
+    const getX = (absIndex: number): number => {
       const step = chartW / candles.length;
-      return padding.left + index * step + step / 2;
+      const relIdx = absIndex >= startIdx ? absIndex - startIdx : 0;
+      return padding.left + relIdx * step + step / 2;
     };
 
     const getY = (price: number): number => {

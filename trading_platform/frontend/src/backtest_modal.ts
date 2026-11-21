@@ -4,16 +4,17 @@
  * executing simulated MTF trades, and outputting complete Tear-Sheet analytics.
  */
 
-import { runBacktest, fetchReplayStep, exportBacktestReport, BacktestReport, SimulatedTrade } from './api';
+import { runBacktest, fetchReplayStep, fetchCandlesPro, downloadBacktestCSV, BacktestReport, SimulatedTrade } from './api';
 
 export class BacktestModal {
   private container: HTMLElement;
   private currentReport: BacktestReport | null = null;
+  private currentCandles: any[] = [];
   private replayActive: boolean = false;
   private replayTimer: number | null = null;
   private currentStepIndex: number = 20;
   private maxStepIndex: number = 100;
-  private replaySpeedMs: number = 800;
+  private replaySpeedMs: number = 600;
 
   constructor(containerId: string) {
     const el = document.getElementById(containerId);
@@ -101,8 +102,8 @@ export class BacktestModal {
             <button class="primary-btn btn-run-bt" id="btn-run-strategy">
               🚀 Run Full Backtest
             </button>
-            <button class="btn-toggle" id="btn-export-backtest-s3" style="width:100%; margin-top:8px; font-size:10px; border-color:var(--color-cyan); color:var(--color-cyan); justify-content:center;">
-              ☁️ Export Tear-Sheet to Neon Storage
+            <button class="btn-toggle" id="btn-export-backtest-csv" style="width:100%; margin-top:8px; font-size:11px; font-weight:700; border-color:var(--color-cyan); color:var(--color-cyan); justify-content:center;">
+              📥 Export Tear-Sheet (Direct CSV)
             </button>
           </div>
         </div>
@@ -111,7 +112,7 @@ export class BacktestModal {
         <div class="replay-toolbar-card">
           <div class="replay-left-group">
             <span class="replay-icon">⏮️</span>
-            <span class="replay-title">Historical Bar-by-Bar Replay Player:</span>
+            <span class="replay-title">Multi-Day Bar-by-Bar Replay Player:</span>
             <span class="step-counter" id="lbl-step-counter">Bar ${this.currentStepIndex} / ${this.maxStepIndex}</span>
           </div>
 
@@ -127,6 +128,7 @@ export class BacktestModal {
             <button class="speed-chip ${this.replaySpeedMs === 1200 ? 'active' : ''}" data-speed="1200">1x</button>
             <button class="speed-chip ${this.replaySpeedMs === 600 ? 'active' : ''}" data-speed="600">2x</button>
             <button class="speed-chip ${this.replaySpeedMs === 250 ? 'active' : ''}" data-speed="250">5x</button>
+            <button class="speed-chip ${this.replaySpeedMs === 100 ? 'active' : ''}" data-speed="100">10x</button>
           </div>
         </div>
 
@@ -143,15 +145,13 @@ export class BacktestModal {
   private attachEvents() {
     this.container.querySelector('#btn-run-strategy')?.addEventListener('click', () => this.executeBacktest());
 
-    this.container.querySelector('#btn-export-backtest-s3')?.addEventListener('click', async () => {
+    this.container.querySelector('#btn-export-backtest-csv')?.addEventListener('click', async () => {
       if (!this.currentReport) {
         alert('Please run a backtest first before exporting.');
         return;
       }
       try {
-        const res = await exportBacktestReport(this.currentReport);
-        alert(`Backtest Tear-Sheet saved to Neon Object Storage!\nFile: ${res.filename}\n\nPresigned URL generated (valid 24h). Opening download...`);
-        window.open(res.url, '_blank');
+        await downloadBacktestCSV(this.currentReport);
       } catch (err: any) {
         alert(`Export Failed: ${err.message}`);
       }
@@ -201,14 +201,19 @@ export class BacktestModal {
     if (area) area.innerHTML = `<div class="results-loading">Simulating 4-step SMC MTF trades across ${sym} (${tf})...</div>`;
 
     try {
-      this.currentReport = await runBacktest({
-        symbol: sym,
-        timeframe: tf,
-        initial_capital: cap,
-        risk_pct_per_trade: risk,
-      });
+      const [report, candles] = await Promise.all([
+        runBacktest({
+          symbol: sym,
+          timeframe: tf,
+          initial_capital: cap,
+          risk_pct_per_trade: risk,
+        }),
+        fetchCandlesPro(sym, tf, 120).catch(() => [])
+      ]);
 
-      this.maxStepIndex = this.currentReport.equity_curve.length - 1;
+      this.currentReport = report;
+      this.currentCandles = candles && candles.length > 0 ? candles : [];
+      this.maxStepIndex = Math.max(1, (this.currentReport.equity_curve.length > 0 ? this.currentReport.equity_curve.length - 1 : 100));
       this.currentStepIndex = Math.min(30, this.maxStepIndex);
       this.renderReport(this.currentReport);
     } catch (e: any) {
@@ -256,6 +261,23 @@ export class BacktestModal {
           <span class="tear-lbl">Simulated Trades</span>
           <span class="tear-val font-mono text-gold">${rep.total_trades}</span>
           <span class="tear-sub">Avg R:R 1:${rep.avg_risk_reward} · Factor: ${rep.profit_factor.toFixed(2)}</span>
+        </div>
+      </div>
+
+      <!-- Multi-Day Candlestick Replay & SMC Execution Markers Canvas -->
+      <div class="bt-candlestick-canvas-card">
+        <div class="bt-canvas-header">
+          <div class="bt-canvas-title">
+            <span class="canvas-icon">📊</span>
+            <span class="canvas-name">Multi-Day Candlestick Replay &amp; SMC Execution Markers (${rep.symbol} · ${rep.timeframe})</span>
+          </div>
+          <div class="bt-canvas-stats">
+            <span class="step-badge font-mono" id="bt-candlestick-step-badge">Bar 1 to ${this.currentStepIndex} of ${this.maxStepIndex}</span>
+            <span class="badge-tag font-mono text-cyan">● SMC Execution Overlay</span>
+          </div>
+        </div>
+        <div class="bt-canvas-wrapper">
+          <canvas id="bt-candlestick-replay-canvas" width="960" height="240"></canvas>
         </div>
       </div>
 
@@ -330,9 +352,212 @@ export class BacktestModal {
 
     this.updateStepLabel();
 
+    const candleCanvas = this.container.querySelector('#bt-candlestick-replay-canvas') as HTMLCanvasElement;
+    if (candleCanvas && rep) {
+      this.drawCandlestickReplay(candleCanvas, rep, this.currentStepIndex);
+    }
+
     const canvas = this.container.querySelector('#bt-equity-curve-canvas') as HTMLCanvasElement;
     if (canvas && rep.equity_curve) {
       this.drawEquityCurve(canvas, rep.equity_curve, isProfit);
+    }
+  }
+
+  private drawCandlestickReplay(canvas: HTMLCanvasElement, rep: BacktestReport, stepIndex: number) {
+    if (!canvas || !rep) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // Prepare candles up to stepIndex
+    let visible = this.currentCandles.slice(0, Math.max(1, stepIndex + 1));
+    if (visible.length === 0) {
+      let price = (rep.trades && rep.trades.length > 0) ? rep.trades[0].entry_price : 1360;
+      visible = [];
+      for (let i = 0; i <= stepIndex; i++) {
+        const delta = Math.sin(i * 0.4) * 3.5 + ((i % 3 === 0) ? 1.8 : -1.4);
+        const open = price;
+        const close = open + delta;
+        const high = Math.max(open, close) + Math.abs(delta) * 0.6 + 1.2;
+        const low = Math.min(open, close) - Math.abs(delta) * 0.6 - 1.2;
+        visible.push({ open, close, high, low, time: new Date(Date.now() - (stepIndex - i) * 900000).toISOString() });
+        price = close;
+      }
+    }
+
+    const currSym = rep.symbol.includes('/') ? '$' : '₹';
+    const lows = visible.map(c => c.low);
+    const highs = visible.map(c => c.high);
+    let minP = Math.min(...lows) * 0.998;
+    let maxP = Math.max(...highs) * 1.002;
+    const range = (maxP - minP) || 1;
+
+    const leftMargin = 16;
+    const rightMargin = 70;
+    const topMargin = 20;
+    const bottomMargin = 25;
+    const chartWidth = w - leftMargin - rightMargin;
+    const chartHeight = h - topMargin - bottomMargin;
+
+    // Background & Subtle Grid
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.strokeStyle = '#F1F5F9';
+    ctx.lineWidth = 1;
+    for (let i = 1; i <= 4; i++) {
+      const y = topMargin + (chartHeight / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(leftMargin, y);
+      ctx.lineTo(w - rightMargin, y);
+      ctx.stroke();
+
+      const priceVal = maxP - (i / 4) * range;
+      ctx.fillStyle = '#64748B';
+      ctx.font = '10px var(--font-mono, monospace)';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${currSym}${priceVal.toFixed(1)}`, w - rightMargin + 6, y + 3);
+    }
+
+    const nBars = visible.length;
+    const stepWidth = Math.max(4, chartWidth / Math.max(nBars, 15));
+    const barWidth = Math.max(2, Math.min(16, stepWidth * 0.72));
+
+    const getX = (idx: number) => leftMargin + idx * stepWidth;
+    const getY = (val: number) => topMargin + chartHeight - ((val - minP) / range) * chartHeight;
+
+    // Draw Candlesticks
+    for (let i = 0; i < visible.length; i++) {
+      const c = visible[i];
+      const x = getX(i);
+      const isBull = c.close >= c.open;
+      const color = isBull ? '#10B981' : '#EF4444';
+      const wickX = x + barWidth / 2;
+
+      // Wick
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(wickX, getY(c.high));
+      ctx.lineTo(wickX, getY(c.low));
+      ctx.stroke();
+
+      // Body
+      const topY = getY(Math.max(c.open, c.close));
+      const botY = getY(Math.min(c.open, c.close));
+      const bodyH = Math.max(2, botY - topY);
+      ctx.fillStyle = color;
+      ctx.fillRect(x, topY, barWidth, bodyH);
+    }
+
+    // Draw Simulated Trade Overlays
+    if (rep.trades && rep.trades.length > 0) {
+      for (const t of rep.trades) {
+        if (t.entry_index <= stepIndex) {
+          const entryIdx = Math.min(t.entry_index, visible.length - 1);
+          const entryX = getX(entryIdx) + barWidth / 2;
+          const entryY = getY(t.entry_price);
+          const isBuy = t.side === 'BUY';
+
+          const hasExited = (t.exit_index !== undefined && t.exit_index <= stepIndex);
+          const currentEndIdx = hasExited ? Math.min(t.exit_index!, visible.length - 1) : Math.min(stepIndex, visible.length - 1);
+          const endX = getX(currentEndIdx) + barWidth / 2;
+
+          // Shaded TP & SL Boxes
+          if (t.take_profit && t.stop_loss) {
+            const tpY = getY(t.take_profit);
+            const slY = getY(t.stop_loss);
+            const boxW = Math.max(14, endX - entryX);
+
+            // Green TP zone
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.12)';
+            ctx.fillRect(entryX, Math.min(entryY, tpY), boxW, Math.abs(tpY - entryY));
+
+            // Red SL zone
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.12)';
+            ctx.fillRect(entryX, Math.min(entryY, slY), boxW, Math.abs(slY - entryY));
+
+            // Dashed Target Lines
+            ctx.setLineDash([3, 3]);
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = '#10B981';
+            ctx.beginPath();
+            ctx.moveTo(entryX, tpY);
+            ctx.lineTo(endX, tpY);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#EF4444';
+            ctx.beginPath();
+            ctx.moveTo(entryX, slY);
+            ctx.lineTo(endX, slY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+
+          // Entry Triangle & Badge
+          ctx.fillStyle = isBuy ? '#10B981' : '#EF4444';
+          ctx.beginPath();
+          if (isBuy) {
+            ctx.moveTo(entryX, entryY + 6);
+            ctx.lineTo(entryX - 5, entryY + 15);
+            ctx.lineTo(entryX + 5, entryY + 15);
+          } else {
+            ctx.moveTo(entryX, entryY - 6);
+            ctx.lineTo(entryX - 5, entryY - 15);
+            ctx.lineTo(entryX + 5, entryY - 15);
+          }
+          ctx.fill();
+
+          ctx.font = 'bold 9px var(--font-mono, monospace)';
+          ctx.fillStyle = isBuy ? '#047857' : '#B91C1C';
+          ctx.textAlign = 'center';
+          ctx.fillText(isBuy ? '▲ BUY' : '▼ SELL', entryX, isBuy ? entryY + 25 : entryY - 18);
+
+          // If exited, draw trajectory path and exit tag
+          if (hasExited) {
+            const exitY = getY(t.exit_price || t.entry_price);
+            const isWin = t.pnl >= 0;
+
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = isWin ? '#10B981' : '#EF4444';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(entryX, entryY);
+            ctx.lineTo(endX, exitY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Exit Tag Badge
+            ctx.fillStyle = isWin ? '#10B981' : '#EF4444';
+            ctx.fillRect(endX - 16, exitY - 7, 32, 14);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 9px var(--font-mono, monospace)';
+            ctx.textAlign = 'center';
+            ctx.fillText(isWin ? 'TP ✓' : 'SL ✕', endX, exitY + 3);
+          }
+        }
+      }
+    }
+
+    // Active Replay Bar Indicator (Blue dashed vertical marker)
+    if (visible.length > 0) {
+      const activeX = getX(visible.length - 1) + barWidth / 2;
+      ctx.setLineDash([2, 2]);
+      ctx.strokeStyle = '#0284C7';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(activeX, topMargin);
+      ctx.lineTo(activeX, topMargin + chartHeight);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#0284C7';
+      ctx.beginPath();
+      ctx.arc(activeX, getY(visible[visible.length - 1].close), 3.5, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
@@ -403,6 +628,9 @@ export class BacktestModal {
   private updateStepLabel() {
     const lbl = this.container.querySelector('#lbl-step-counter');
     if (lbl) lbl.textContent = `Bar ${this.currentStepIndex} / ${this.maxStepIndex}`;
+
+    const badge = this.container.querySelector('#bt-candlestick-step-badge');
+    if (badge) badge.textContent = `Bar 1 to ${this.currentStepIndex} of ${this.maxStepIndex}`;
   }
 
   private startReplay() {
@@ -451,6 +679,21 @@ export class BacktestModal {
   private async triggerStepUpdate() {
     const sym = (this.container.querySelector('#bt-symbol') as HTMLSelectElement)?.value || 'RELIANCE';
     const tf = (this.container.querySelector('#bt-timeframe') as HTMLSelectElement)?.value || '15M';
+
+    if (this.currentReport) {
+      const candleCanvas = this.container.querySelector('#bt-candlestick-replay-canvas') as HTMLCanvasElement;
+      if (candleCanvas) {
+        this.drawCandlestickReplay(candleCanvas, this.currentReport, this.currentStepIndex);
+      }
+
+      const eqCanvas = this.container.querySelector('#bt-equity-curve-canvas') as HTMLCanvasElement;
+      if (eqCanvas && this.currentReport.equity_curve) {
+        const subCurve = this.currentReport.equity_curve.slice(0, Math.max(2, this.currentStepIndex + 1));
+        const isProfit = this.currentReport.net_profit >= 0;
+        this.drawEquityCurve(eqCanvas, subCurve, isProfit);
+      }
+    }
+
     try {
       await fetchReplayStep(sym, tf, this.currentStepIndex);
     } catch (e) {

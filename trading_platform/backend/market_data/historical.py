@@ -33,14 +33,14 @@ class Candle(BaseModel):
 
 
 TIMEFRAME_CONFIG = {
-    "1M": {"yf_interval": "1m", "yf_period": "1d", "minutes": 1, "default_bars": 100},
-    "3M": {"yf_interval": "2m", "yf_period": "1d", "minutes": 3, "default_bars": 100},
-    "5M": {"yf_interval": "5m", "yf_period": "5d", "minutes": 5, "default_bars": 100},
-    "15M": {"yf_interval": "15m", "yf_period": "1mo", "minutes": 15, "default_bars": 100},
-    "30M": {"yf_interval": "30m", "yf_period": "1mo", "minutes": 30, "default_bars": 100},
-    "1H": {"yf_interval": "1h", "yf_period": "3mo", "minutes": 60, "default_bars": 120},
-    "4H": {"yf_interval": "1h", "yf_period": "6mo", "minutes": 240, "default_bars": 120},
-    "1D": {"yf_interval": "1d", "yf_period": "1y", "minutes": 1440, "default_bars": 120},
+    "1M": {"yf_interval": "1m", "yf_period": "7d", "minutes": 1, "default_bars": 350},
+    "3M": {"yf_interval": "2m", "yf_period": "7d", "minutes": 3, "default_bars": 350},
+    "5M": {"yf_interval": "5m", "yf_period": "1mo", "minutes": 5, "default_bars": 350},
+    "15M": {"yf_interval": "15m", "yf_period": "2mo", "minutes": 15, "default_bars": 350},
+    "30M": {"yf_interval": "30m", "yf_period": "2mo", "minutes": 30, "default_bars": 350},
+    "1H": {"yf_interval": "1h", "yf_period": "6mo", "minutes": 60, "default_bars": 350},
+    "4H": {"yf_interval": "1h", "yf_period": "1y", "minutes": 240, "default_bars": 350},
+    "1D": {"yf_interval": "1d", "yf_period": "2y", "minutes": 1440, "default_bars": 350},
 }
 
 
@@ -53,7 +53,7 @@ class HistoricalCandleLoader:
         self._candle_cache: Dict[str, List[Candle]] = {}
         self._cache_ts: Dict[str, float] = {}
 
-    async def get_candles(self, symbol: str, timeframe: str = "15M", limit: int = 100) -> List[Candle]:
+    async def get_candles(self, symbol: str, timeframe: str = "15M", limit: int = 350) -> List[Candle]:
         """
         Fetch OHLCV candles for given symbol and timeframe ('4H', '1H', '15M', '5M', '1D').
         Enforces 60-second TTL cache for real-time responsiveness.
@@ -185,7 +185,7 @@ class HistoricalCandleLoader:
         current_price = base_price * 0.96  # Start slightly lower to create uptrend/pullback structure
 
         # Seed realistic institutional wave
-        num_bars = max(limit, 60)
+        num_bars = max(limit, 350)
         start_time = now - timedelta(minutes=step_minutes * num_bars)
 
         for i in range(num_bars):
