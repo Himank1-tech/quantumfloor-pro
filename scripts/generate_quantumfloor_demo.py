@@ -73,17 +73,18 @@ SCENES = [
     },
     {
         "id": "scene3",
-        "name": "Live Indian Equities & 8 Timeframe Superchart",
-        "badge": "NSE / BSE EQUITIES",
-        "title": "8-TIMEFRAME SUPERCHART & ERGONOMICS",
-        "subtitle": "350+ Multi-Day Candles, Day-Break Dividers, Market Integrity Badge & Fullscreen",
+        "name": "TradingView-Grade Superchart & Left Drawing Toolbar",
+        "badge": "TRADINGVIEW SUPERCHART",
+        "title": "TRADINGVIEW SUPERCHART & DRAWING TOOLBAR",
+        "subtitle": "44px Left Toolbar, Trendlines, Fib OTE, Long/Short R:R Tool, Bar Replay & Multi-Month Presets",
         "script": (
-            "QuantumFloor Pro streams live market feeds directly from Indian exchanges with sub-fifteen second ticks and zero mock data. "
-            "On the real-time ticker ribbon, selecting Reliance Industries, TCS, or HDFC Bank "
-            "immediately updates the institutional superchart across more than three hundred multi-day candles. "
-            "Vertical dashed Day-Break Separator Lines clearly delineate daily trading sessions, "
-            "while the real-time Market Feed Integrity Badge confirms full synchronization with exchange clocks. "
-            "Traders can smoothly pan across historical sessions, zoom with precision controls, and maximize to full screen."
+            "QuantumFloor Pro upgrades the charting engine to an institutional TradingView-grade workspace. "
+            "On the left, a sleek forty-four pixel drawing toolbar equips traders with precision crosshairs, "
+            "trendlines, ray lines, Fibonacci retracement with shaded optimal trade entry zones, "
+            "and interactive long and short position risk-reward boxes with real-time target and stop-loss metrics. "
+            "Traders enjoy magnetic snapping to candlestick extremes, top-left live OHLC readouts, "
+            "bottom date presets spanning one day to multi-year history, a comprehensive technical indicators modal, "
+            "and an interactive candlestick bar replay engine."
         ),
     },
     {
@@ -631,66 +632,98 @@ async def record_scene_video(context, page, scene, target_duration: float):
         await asyncio.sleep(2.0)
 
     elif sid == "scene3":
-        # Scene 3: Live Indian Equities & 8 Timeframe Superchart
+        # Scene 3: TradingView-Grade Superchart & Left Drawing Toolbar
         # Select RELIANCE
         await smooth_move(200, 150, click=True)
         await page.evaluate("() => { const c = document.querySelector('.ticker-chip[data-symbol=\"RELIANCE\"]'); if(c) c.click(); }")
-        await asyncio.sleep(1.2)
-        # Select TCS
-        await smooth_move(320, 150, click=True)
-        await page.evaluate("() => { const c = document.querySelector('.ticker-chip[data-symbol=\"TCS\"]'); if(c) c.click(); }")
-        await asyncio.sleep(1.2)
-        # Select HDFCBANK
-        await smooth_move(440, 150, click=True)
-        await page.evaluate("() => { const c = document.querySelector('.ticker-chip[data-symbol=\"HDFCBANK\"]'); if(c) c.click(); }")
-        await asyncio.sleep(1.2)
-        # Return to RELIANCE
-        await smooth_move(200, 150, click=True)
-        await page.evaluate("() => { const c = document.querySelector('.ticker-chip[data-symbol=\"RELIANCE\"]'); if(c) c.click(); }")
         await asyncio.sleep(1.0)
-        # Switch timeframes: 1M -> 5M -> 15M -> 1H -> 1D
-        await smooth_move(550, 180, click=True)
-        await page.evaluate("() => { const b = document.querySelector('.tf-chip-btn[data-tf=\"1M\"]'); if(b) b.click(); }")
-        await asyncio.sleep(1.0)
-        await smooth_move(600, 180, click=True)
-        await page.evaluate("() => { const b = document.querySelector('.tf-chip-btn[data-tf=\"5M\"]'); if(b) b.click(); }")
-        await asyncio.sleep(1.0)
+
+        # Switch timeframes: 15M -> 2H -> 1D
         await smooth_move(650, 180, click=True)
-        await page.evaluate("() => { const b = document.querySelector('.tf-chip-btn[data-tf=\"15M\"]'); if(b) b.click(); }")
+        await page.evaluate("() => { const b = document.querySelector('.tf-chip-btn[data-tf=\"2H\"]'); if(b) b.click(); }")
         await asyncio.sleep(1.0)
-        await smooth_move(700, 180, click=True)
-        await page.evaluate("() => { const b = document.querySelector('.tf-chip-btn[data-tf=\"1H\"]'); if(b) b.click(); }")
-        await asyncio.sleep(1.0)
-        # Demonstrate chart panning via mouse drag
-        chart_el = await page.query_selector("#trading-chart")
+
+        # Bottom Date Range Presets: Click 1M -> ALL
+        await page.evaluate("() => { const b = document.querySelector('.date-preset-btn[data-preset=\"1M\"]'); if(b) b.click(); }")
+        await asyncio.sleep(0.8)
+        await page.evaluate("() => { const b = document.querySelector('.date-preset-btn[data-preset=\"ALL\"]'); if(b) b.click(); }")
+        await asyncio.sleep(0.8)
+
+        # Left Toolbar: Select Trendline tool and draw on chart
+        await smooth_move(22, 360, click=True)
+        await page.evaluate("() => { const b = document.querySelector('.tv-tool-btn[data-tool=\"trendline\"]'); if(b) b.click(); }")
+        await asyncio.sleep(0.6)
+        chart_el = await page.query_selector("#trading-chart, #price-chart-container canvas")
         if chart_el:
             box = await chart_el.bounding_box()
             if box:
-                cx = box["x"] + box["width"] * 0.5
+                p1_x = box["x"] + box["width"] * 0.25
+                p1_y = box["y"] + box["height"] * 0.65
+                p2_x = box["x"] + box["width"] * 0.65
+                p2_y = box["y"] + box["height"] * 0.35
+                await smooth_move(p1_x, p1_y)
+                await page.mouse.down()
+                await page.mouse.move(p2_x, p2_y, steps=10)
+                await page.mouse.up()
+                await asyncio.sleep(1.0)
+
+        # Left Toolbar: Select Long Position Risk-Reward Tool
+        await smooth_move(22, 490, click=True)
+        await page.evaluate("() => { const b = document.querySelector('.tv-tool-btn[data-tool=\"long_position\"]'); if(b) b.click(); }")
+        await asyncio.sleep(0.6)
+        if chart_el:
+            box = await chart_el.bounding_box()
+            if box:
+                lp_x = box["x"] + box["width"] * 0.45
+                lp_y = box["y"] + box["height"] * 0.50
+                await smooth_move(lp_x, lp_y)
+                await page.mouse.down()
+                await page.mouse.move(lp_x + 120, lp_y - 40, steps=8)
+                await page.mouse.up()
+                await asyncio.sleep(1.2)
+
+        # Left Toolbar: Toggle Magnet mode
+        await smooth_move(22, 650, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-draw-magnet'); if(b) b.click(); }")
+        await asyncio.sleep(0.8)
+
+        # Open Indicators Modal
+        await smooth_move(750, 180, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-chart-indicators'); if(b) b.click(); }")
+        await asyncio.sleep(1.5)
+        # Apply Indicators
+        await smooth_move(960, 580, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-save-indicators-modal'); if(b) b.click(); }")
+        await asyncio.sleep(1.0)
+
+        # Activate Bar Replay Mode
+        await smooth_move(810, 180, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-chart-replay'); if(b) b.click(); }")
+        await asyncio.sleep(0.8)
+        # Click Replay Play
+        await smooth_move(1100, 240, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-chart-replay-play'); if(b) b.click(); }")
+        await asyncio.sleep(2.0)
+        # Click Replay Step
+        await page.evaluate("() => { const b = document.getElementById('btn-chart-replay-step'); if(b) b.click(); }")
+        await asyncio.sleep(0.8)
+        # Exit Replay
+        await page.evaluate("() => { const b = document.getElementById('btn-chart-replay-exit'); if(b) b.click(); }")
+        await asyncio.sleep(1.0)
+
+        # Smooth drag pan across historical candles
+        if chart_el:
+            box = await chart_el.bounding_box()
+            if box:
+                cx = box["x"] + box["width"] * 0.55
                 cy = box["y"] + box["height"] * 0.5
+                await page.evaluate("() => { const b = document.querySelector('.tv-tool-btn[data-tool=\"crosshair\"]'); if(b) b.click(); }")
                 await smooth_move(cx, cy)
                 await page.mouse.move(cx, cy)
                 await page.mouse.down()
-                await page.mouse.move(cx - 160, cy, steps=8)
+                await page.mouse.move(cx - 180, cy, steps=8)
                 await page.mouse.up()
-                await asyncio.sleep(0.8)
-        # Click Zoom In, Zoom Out, and Fit
-        await smooth_move(850, 180, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-chart-zoom-in'); if(b) b.click(); }")
-        await asyncio.sleep(0.8)
-        await smooth_move(885, 180, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-chart-zoom-out'); if(b) b.click(); }")
-        await asyncio.sleep(0.8)
-        await smooth_move(920, 180, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-chart-reset'); if(b) b.click(); }")
-        await asyncio.sleep(0.8)
-        # Maximize Superchart
-        await smooth_move(960, 180, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-chart-maximize'); if(b) b.click(); }")
-        await asyncio.sleep(2.0)
-        # Restore Superchart
-        await page.evaluate("() => { const b = document.getElementById('btn-chart-maximize'); if(b) b.click(); }")
-        await asyncio.sleep(1.2)
+                await asyncio.sleep(1.0)
 
     elif sid == "scene4":
         # Scene 4: Live Global Forex & Pip/Lot Risk Calculator
@@ -792,7 +825,7 @@ async def record_scene_video(context, page, scene, target_duration: float):
         await asyncio.sleep(3.0)
         # Close Co-Pilot drawer
         await smooth_move(1880, 240, click=True)
-        await page.evaluate("() => { const b = document.getElementById('copilot-close-btn'); if(b) b.click(); }")
+        await page.evaluate("() => { const b = document.getElementById('btn-copilot-close') || document.getElementById('copilot-close-btn') || document.querySelector('.copilot-btn-close'); if(b) b.click(); }")
         await asyncio.sleep(1.2)
 
     elif sid == "scene8":
