@@ -19,6 +19,7 @@ import {
   fetchDebates,
   exportTradeBlotterReport,
   MTFSetupReport,
+  API_BASE,
 } from './api';
 import { PriceChartEngine, EquityCurveChartEngine } from './chart';
 
@@ -196,7 +197,7 @@ export function renderFloorPanel(): string {
                 </span>
               </div>
 
-              <!-- Timeframe Selector Chips (8 Timeframes: 1M, 3M, 5M, 15M, 30M, 1H, 4H, 1D) -->
+              <!-- Timeframe Selector Chips (9 Timeframes: 1M, 3M, 5M, 15M, 30M, 1H, 2H, 4H, 1D) -->
               <div class="timeframe-chips-bar" id="timeframe-selector">
                 <button class="tf-chip-btn" data-tf="1M">1M</button>
                 <button class="tf-chip-btn" data-tf="3M">3M</button>
@@ -204,6 +205,7 @@ export function renderFloorPanel(): string {
                 <button class="tf-chip-btn active" data-tf="15M">15M</button>
                 <button class="tf-chip-btn" data-tf="30M">30M</button>
                 <button class="tf-chip-btn" data-tf="1H">1H</button>
+                <button class="tf-chip-btn" data-tf="2H">2H</button>
                 <button class="tf-chip-btn" data-tf="4H">4H</button>
                 <button class="tf-chip-btn" data-tf="1D">1D</button>
               </div>
@@ -234,6 +236,8 @@ export function renderFloorPanel(): string {
 
               <!-- Superchart Ergonomic Controls: Zoom, Reset, Maximize & Tools -->
               <div class="chart-tool-buttons">
+                <button class="chart-mini-tool-btn" id="btn-chart-indicators" title="Technical & SMC Indicators">📊 Indicators</button>
+                <button class="chart-mini-tool-btn" id="btn-chart-replay" title="Candlestick Bar Replay Mode">⏪ Replay</button>
                 <button class="chart-mini-tool-btn" id="btn-chart-zoom-in" title="Zoom In (or Mouse Wheel Up)">➕</button>
                 <button class="chart-mini-tool-btn" id="btn-chart-zoom-out" title="Zoom Out (or Mouse Wheel Down)">➖</button>
                 <button class="chart-mini-tool-btn" id="btn-chart-reset" title="Auto-Fit / Reset View">⟲ Fit</button>
@@ -254,8 +258,87 @@ export function renderFloorPanel(): string {
               <!-- Dynamically populated with active market chips -->
             </div>
 
-            <!-- Main High-Performance Canvas Container (520px height) -->
-            <div class="chart-canvas-wrapper" id="price-chart-container"></div>
+            <!-- TradingView Superchart Layout with Left Drawing Toolbar -->
+            <div class="tv-superchart-container" id="tv-superchart-container">
+              <!-- Sleek 44px Left Drawing Toolbar -->
+              <div class="tv-drawing-toolbar" id="tv-drawing-toolbar">
+                <button class="tv-tool-btn active" data-tool="crosshair" title="Crosshair (C)">✛</button>
+                <button class="tv-tool-btn" data-tool="dot" title="Dot Cursor">●</button>
+                <button class="tv-tool-btn" data-tool="arrow" title="Arrow Cursor">↖</button>
+                <div class="tv-tool-sep"></div>
+                <button class="tv-tool-btn" data-tool="trendline" title="Trend Line (Alt+T)">╱</button>
+                <button class="tv-tool-btn" data-tool="ray" title="Ray Line">↗</button>
+                <button class="tv-tool-btn" data-tool="horizontal" title="Horizontal Line (Alt+H)">―</button>
+                <button class="tv-tool-btn" data-tool="vertical" title="Vertical Line (Alt+V)">│</button>
+                <button class="tv-tool-btn" data-tool="channel" title="Parallel Channel">⫽</button>
+                <div class="tv-tool-sep"></div>
+                <button class="tv-tool-btn" data-tool="fib" title="Fibonacci Retracement (Alt+F)">≋</button>
+                <button class="tv-tool-btn" data-tool="long_position" title="Long Position Risk-Reward Box">📈</button>
+                <button class="tv-tool-btn" data-tool="short_position" title="Short Position Risk-Reward Box">📉</button>
+                <button class="tv-tool-btn" data-tool="price_range" title="Price Range / Pips">↕</button>
+                <button class="tv-tool-btn" data-tool="date_range" title="Date Range / Bars">↔</button>
+                <div class="tv-tool-sep"></div>
+                <button class="tv-tool-btn" data-tool="brush" title="Brush Drawing">✎</button>
+                <button class="tv-tool-btn" data-tool="text" title="Text Annotation (Alt+A)">T</button>
+                <button class="tv-tool-btn" data-tool="eraser" title="Eraser">🧹</button>
+                <div class="tv-tool-sep"></div>
+                <button class="tv-tool-btn" id="btn-draw-magnet" title="Magnet Mode (Snap to OHLC)">🧲</button>
+                <button class="tv-tool-btn" id="btn-draw-visibility" title="Hide/Show Drawings">👁️</button>
+                <button class="tv-tool-btn" id="btn-draw-clear" title="Clear All Drawings">🗑️</button>
+              </div>
+
+              <!-- Right Main Area: Canvas + Floating Bars + Bottom Date Presets -->
+              <div class="tv-chart-main-area">
+                <!-- Floating Contextual Drawing Style Toolbar -->
+                <div class="drawing-style-toolbar" id="drawing-style-toolbar" style="display:none;">
+                  <span class="style-tool-label" id="style-tool-name">Trendline</span>
+                  <input type="color" id="style-tool-color" value="#00E5FF" title="Drawing Color" />
+                  <select id="style-tool-width" title="Line Width">
+                    <option value="1">1px</option>
+                    <option value="2" selected>2px</option>
+                    <option value="3">3px</option>
+                    <option value="4">4px</option>
+                  </select>
+                  <select id="style-tool-dash" title="Line Style">
+                    <option value="solid" selected>Solid</option>
+                    <option value="dashed">Dashed</option>
+                    <option value="dotted">Dotted</option>
+                  </select>
+                  <button class="btn-mini-danger" id="style-tool-delete" title="Delete Selected Drawing">✕</button>
+                </div>
+
+                <!-- Floating Bar Replay Control Bar -->
+                <div class="chart-replay-bar" id="chart-replay-bar" style="display:none;">
+                  <span class="replay-badge">⏪ REPLAY</span>
+                  <button class="replay-btn" id="btn-chart-replay-play" title="Play">▶</button>
+                  <button class="replay-btn" id="btn-chart-replay-pause" title="Pause" style="display:none;">⏸</button>
+                  <button class="replay-btn" id="btn-chart-replay-step" title="Forward 1 Bar">⏭</button>
+                  <button class="replay-btn" id="btn-chart-replay-reset" title="Reset">↺</button>
+                  <select id="chart-replay-speed" class="replay-speed-select">
+                    <option value="1">1x</option>
+                    <option value="2">2x</option>
+                    <option value="5" selected>5x</option>
+                    <option value="10">10x</option>
+                  </select>
+                  <button class="replay-btn-close" id="btn-chart-replay-exit" title="Exit Replay">✕</button>
+                </div>
+
+                <!-- Main High-Performance Canvas Container (520px height) -->
+                <div class="chart-canvas-wrapper" id="price-chart-container"></div>
+
+                <!-- Bottom Date Range Presets Bar -->
+                <div class="chart-date-presets-bar" id="chart-date-presets">
+                  <span class="date-preset-label">RANGE:</span>
+                  <button class="date-preset-btn" data-preset="1D">1D</button>
+                  <button class="date-preset-btn" data-preset="5D">5D</button>
+                  <button class="date-preset-btn" data-preset="1M">1M</button>
+                  <button class="date-preset-btn" data-preset="3M">3M</button>
+                  <button class="date-preset-btn" data-preset="6M">6M</button>
+                  <button class="date-preset-btn" data-preset="1Y">1Y</button>
+                  <button class="date-preset-btn active" data-preset="ALL">ALL</button>
+                </div>
+              </div>
+            </div>
           </section>
 
           <!-- Tabbed Market Depth & Trade Blotter Card -->
@@ -277,7 +360,7 @@ export function renderFloorPanel(): string {
                 </button>
               </div>
               <button id="btn-export-blotter-s3" class="btn-toggle" style="font-size:10px; padding:3px 10px; margin-left:auto; display:flex; align-items:center; gap:4px; border-color:var(--color-cyan); color:var(--color-cyan);">
-                <span>☁️ EXPORT CSV (NEON STORAGE)</span>
+                <span>📥 EXPORT CSV (DIRECT)</span>
               </button>
             </div>
 
@@ -633,6 +716,68 @@ export function renderFloorPanel(): string {
           </section>
         </div>
       </main>
+
+      <!-- Indicators & Overlays Modal Dialog -->
+      <div class="indicators-modal-backdrop" id="indicators-modal" style="display:none;">
+        <div class="indicators-modal-card">
+          <div class="indicators-modal-header">
+            <h3>📊 Superchart Indicators & Overlays</h3>
+            <button class="btn-modal-close" id="btn-close-indicators-modal">✕</button>
+          </div>
+          <div class="indicators-modal-body">
+            <div class="indicator-group-title">SMART MONEY CONCEPTS (SMC)</div>
+            <div class="indicator-toggle-grid">
+              <label class="ind-toggle-item">
+                <input type="checkbox" id="ind-smc-struct" checked />
+                <span>Market Structure (BOS / CHoCH)</span>
+              </label>
+              <label class="ind-toggle-item">
+                <input type="checkbox" id="ind-smc-obs" checked />
+                <span>Order Blocks & Fair Value Gaps (FVG)</span>
+              </label>
+              <label class="ind-toggle-item">
+                <input type="checkbox" id="ind-smc-liq" checked />
+                <span>Liquidity Pools (BSL / SSL)</span>
+              </label>
+              <label class="ind-toggle-item">
+                <input type="checkbox" id="ind-smc-sr" checked />
+                <span>Support & Resistance Zones</span>
+              </label>
+              <label class="ind-toggle-item">
+                <input type="checkbox" id="ind-smc-fib" checked />
+                <span>Fibonacci OTE Sweet-Spot (61.8% - 78.6%)</span>
+              </label>
+            </div>
+
+            <div class="indicator-group-title" style="margin-top:16px;">TECHNICAL OVERLAYS</div>
+            <div class="indicator-toggle-grid">
+              <label class="ind-toggle-item">
+                <input type="checkbox" id="ind-ema20" checked />
+                <span>EMA 20 (Short-Term Fast Trend)</span>
+              </label>
+              <label class="ind-toggle-item">
+                <input type="checkbox" id="ind-ema50" checked />
+                <span>EMA 50 (Medium-Term Dynamic S&R)</span>
+              </label>
+              <label class="ind-toggle-item">
+                <input type="checkbox" id="ind-ema200" />
+                <span>EMA 200 (Long-Term Institutional Baseline)</span>
+              </label>
+              <label class="ind-toggle-item">
+                <input type="checkbox" id="ind-vwap" />
+                <span>VWAP (Volume-Weighted Average Price)</span>
+              </label>
+              <label class="ind-toggle-item">
+                <input type="checkbox" id="ind-bollinger" />
+                <span>Bollinger Bands (20, 2)</span>
+              </label>
+            </div>
+          </div>
+          <div class="indicators-modal-footer">
+            <button class="btn-primary" id="btn-save-indicators-modal">Apply Indicators</button>
+          </div>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -642,6 +787,26 @@ export function setupFloorEventListeners(): void {
   const priceContainer = document.getElementById('price-chart-container');
   if (priceContainer) {
     priceChart = new PriceChartEngine(priceContainer);
+    priceChart.setSymbol(store.selectedSymbol);
+
+    // Wire drawing selection to style toolbar
+    priceChart.onDrawingSelect = (drawing) => {
+      const toolbar = document.getElementById('drawing-style-toolbar');
+      if (!toolbar) return;
+      if (drawing) {
+        toolbar.style.display = 'flex';
+        const nameEl = document.getElementById('style-tool-name');
+        if (nameEl) nameEl.textContent = drawing.type.toUpperCase();
+        const colorEl = document.getElementById('style-tool-color') as HTMLInputElement;
+        if (colorEl) colorEl.value = drawing.color || '#00E5FF';
+        const widthEl = document.getElementById('style-tool-width') as HTMLSelectElement;
+        if (widthEl) widthEl.value = String(drawing.lineWidth || 2);
+        const dashEl = document.getElementById('style-tool-dash') as HTMLSelectElement;
+        if (dashEl) dashEl.value = drawing.dashed ? 'dashed' : 'solid';
+      } else {
+        toolbar.style.display = 'none';
+      }
+    };
   }
 
   const equityContainer = document.getElementById('equity-chart-container');
@@ -731,6 +896,147 @@ function setupEventListeners(): void {
         priceChart?.resize();
       }, 60);
     }
+  });
+
+  // Left Drawing Toolbar Tool Selection
+  document.querySelectorAll('.tv-tool-btn[data-tool]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.tv-tool-btn[data-tool]').forEach((b) => b.classList.remove('active'));
+      const target = e.currentTarget as HTMLElement;
+      target.classList.add('active');
+      const tool = target.dataset.tool || 'crosshair';
+      priceChart?.setTool(tool);
+    });
+  });
+
+  // Magnet mode toggle
+  let isMagnetActive = false;
+  const magnetBtn = document.getElementById('btn-draw-magnet');
+  magnetBtn?.addEventListener('click', () => {
+    isMagnetActive = !isMagnetActive;
+    priceChart?.setMagnet(isMagnetActive);
+    if (isMagnetActive) {
+      magnetBtn.classList.add('active');
+    } else {
+      magnetBtn.classList.remove('active');
+    }
+  });
+
+  // Drawing visibility toggle
+  const visBtn = document.getElementById('btn-draw-visibility');
+  visBtn?.addEventListener('click', () => {
+    priceChart?.toggleVisibility();
+  });
+
+  // Clear drawings
+  document.getElementById('btn-draw-clear')?.addEventListener('click', () => {
+    if (confirm('Clear all drawings on this chart?')) {
+      priceChart?.clearDrawings();
+    }
+  });
+
+  // Style toolbar bindings
+  const styleColor = document.getElementById('style-tool-color') as HTMLInputElement;
+  const styleWidth = document.getElementById('style-tool-width') as HTMLSelectElement;
+  const styleDash = document.getElementById('style-tool-dash') as HTMLSelectElement;
+
+  styleColor?.addEventListener('input', () => {
+    priceChart?.updateSelectedDrawingStyle(styleColor.value, undefined, undefined);
+  });
+  styleWidth?.addEventListener('change', () => {
+    priceChart?.updateSelectedDrawingStyle(undefined, parseInt(styleWidth.value), undefined);
+  });
+  styleDash?.addEventListener('change', () => {
+    priceChart?.updateSelectedDrawingStyle(undefined, undefined, styleDash.value === 'dashed');
+  });
+  document.getElementById('style-tool-delete')?.addEventListener('click', () => {
+    priceChart?.deleteSelectedDrawing();
+  });
+
+  // Date Range Presets
+  document.querySelectorAll('.date-preset-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.date-preset-btn').forEach((b) => b.classList.remove('active'));
+      const target = e.currentTarget as HTMLElement;
+      target.classList.add('active');
+      const preset = target.dataset.preset || 'ALL';
+      priceChart?.setDateRange(preset);
+    });
+  });
+
+  // Indicators Modal Controls
+  const indModal = document.getElementById('indicators-modal');
+  document.getElementById('btn-chart-indicators')?.addEventListener('click', () => {
+    if (indModal) indModal.style.display = 'flex';
+  });
+  const closeIndModal = () => {
+    if (indModal) indModal.style.display = 'none';
+  };
+  document.getElementById('btn-close-indicators-modal')?.addEventListener('click', closeIndModal);
+  document.getElementById('btn-save-indicators-modal')?.addEventListener('click', closeIndModal);
+
+  // Indicators Checkboxes
+  const bindIndCheck = (id: string, key: any) => {
+    const el = document.getElementById(id) as HTMLInputElement;
+    el?.addEventListener('change', () => {
+      priceChart?.setIndicator(key, el.checked);
+    });
+  };
+  bindIndCheck('ind-smc-struct', 'smcStruct');
+  bindIndCheck('ind-smc-obs', 'smcObs');
+  bindIndCheck('ind-smc-liq', 'smcLiq');
+  bindIndCheck('ind-smc-sr', 'smcSR');
+  bindIndCheck('ind-smc-fib', 'smcFib');
+  bindIndCheck('ind-ema20', 'ema20');
+  bindIndCheck('ind-ema50', 'ema50');
+  bindIndCheck('ind-ema200', 'ema200');
+  bindIndCheck('ind-vwap', 'vwap');
+  bindIndCheck('ind-bollinger', 'bollinger');
+
+  // Bar Replay Engine Controls
+  const replayBar = document.getElementById('chart-replay-bar');
+  const btnReplayPlay = document.getElementById('btn-chart-replay-play');
+  const btnReplayPause = document.getElementById('btn-chart-replay-pause');
+
+  document.getElementById('btn-chart-replay')?.addEventListener('click', () => {
+    if (replayBar) replayBar.style.display = 'flex';
+    priceChart?.startReplay();
+    if (btnReplayPlay) btnReplayPlay.style.display = 'inline-flex';
+    if (btnReplayPause) btnReplayPause.style.display = 'none';
+  });
+
+  btnReplayPlay?.addEventListener('click', () => {
+    priceChart?.playReplay();
+    if (btnReplayPlay) btnReplayPlay.style.display = 'none';
+    if (btnReplayPause) btnReplayPause.style.display = 'inline-flex';
+  });
+
+  btnReplayPause?.addEventListener('click', () => {
+    priceChart?.pauseReplay();
+    if (btnReplayPlay) btnReplayPlay.style.display = 'inline-flex';
+    if (btnReplayPause) btnReplayPause.style.display = 'none';
+  });
+
+  document.getElementById('btn-chart-replay-step')?.addEventListener('click', () => {
+    priceChart?.stepReplay();
+  });
+
+  document.getElementById('btn-chart-replay-reset')?.addEventListener('click', () => {
+    priceChart?.resetReplay();
+    if (btnReplayPlay) btnReplayPlay.style.display = 'inline-flex';
+    if (btnReplayPause) btnReplayPause.style.display = 'none';
+  });
+
+  document.getElementById('chart-replay-speed')?.addEventListener('change', (e) => {
+    const val = parseFloat((e.target as HTMLSelectElement).value);
+    priceChart?.setReplaySpeed(val);
+  });
+
+  document.getElementById('btn-chart-replay-exit')?.addEventListener('click', () => {
+    priceChart?.exitReplay();
+    if (replayBar) replayBar.style.display = 'none';
+    if (btnReplayPlay) btnReplayPlay.style.display = 'inline-flex';
+    if (btnReplayPause) btnReplayPause.style.display = 'none';
   });
 
   // Priority Hero Execute Button -> Auto-fill Quick Ticket
@@ -918,14 +1224,8 @@ function setupEventListeners(): void {
   tabOrd?.addEventListener('click', () => setBlotterTab('ORDERS'));
   tabTrd?.addEventListener('click', () => setBlotterTab('TRADES'));
 
-  document.getElementById('btn-export-blotter-s3')?.addEventListener('click', async () => {
-    try {
-      const res = await exportTradeBlotterReport();
-      alert(`Trade Blotter exported to Neon Object Storage!\nFile: ${res.filename}\nRows: ${res.count}\n\nPresigned URL generated (valid 24h). Opening download...`);
-      window.open(res.url, '_blank');
-    } catch (err: any) {
-      alert(`Export Failed: ${err.message}`);
-    }
+  document.getElementById('btn-export-blotter-s3')?.addEventListener('click', () => {
+    window.location.href = `${API_BASE}/trades/export-csv`;
   });
 }
 
@@ -1004,6 +1304,7 @@ export async function refreshSymbolData(): Promise<void> {
     }
 
     if (priceChart) {
+      priceChart.setSymbol(sym);
       priceChart.updateCandles(candles);
       priceChart.setSMCData(smc, mtf);
     }

@@ -210,8 +210,8 @@ async def get_single_quote(symbol: str):
 @app.get("/api/market/candles")
 async def get_candles(
     symbol: str = Query(..., description="Ticker symbol"),
-    timeframe: str = Query("15M", description="Timeframe: 1M, 3M, 5M, 15M, 30M, 1H, 4H, 1D"),
-    limit: int = 350
+    timeframe: str = Query("15M", description="Timeframe: 1M, 3M, 5M, 15M, 30M, 1H, 2H, 4H, 1D"),
+    limit: int = 500
 ):
     try:
         return await historical_candle_loader.get_candles(symbol, timeframe=timeframe, limit=limit)

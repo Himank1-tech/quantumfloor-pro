@@ -410,7 +410,7 @@ function getAuthHeaders(): HeadersInit {
   return headers;
 }
 
-const API_BASE = '/api';
+export const API_BASE = '/api';
 
 export async function fetchHealth(): Promise<any> {
   const res = await fetch(`${API_BASE}/health`);
@@ -1298,7 +1298,7 @@ export async function fetchLiveQuotesPro(): Promise<LiveQuotePro[]> {
   return res.json();
 }
 
-export async function fetchCandlesPro(symbol: string, timeframe: string = '15M', limit: number = 350): Promise<any[]> {
+export async function fetchCandlesPro(symbol: string, timeframe: string = '15M', limit: number = 500): Promise<any[]> {
   const res = await fetch(`${API_BASE}/market/candles?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(timeframe)}&limit=${limit}`);
   if (!res.ok) throw new Error('Failed to fetch candles');
   return res.json();

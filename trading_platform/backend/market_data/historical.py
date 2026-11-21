@@ -33,14 +33,15 @@ class Candle(BaseModel):
 
 
 TIMEFRAME_CONFIG = {
-    "1M": {"yf_interval": "1m", "yf_period": "7d", "minutes": 1, "default_bars": 350},
-    "3M": {"yf_interval": "2m", "yf_period": "7d", "minutes": 3, "default_bars": 350},
-    "5M": {"yf_interval": "5m", "yf_period": "1mo", "minutes": 5, "default_bars": 350},
-    "15M": {"yf_interval": "15m", "yf_period": "2mo", "minutes": 15, "default_bars": 350},
-    "30M": {"yf_interval": "30m", "yf_period": "2mo", "minutes": 30, "default_bars": 350},
-    "1H": {"yf_interval": "1h", "yf_period": "6mo", "minutes": 60, "default_bars": 350},
-    "4H": {"yf_interval": "1h", "yf_period": "1y", "minutes": 240, "default_bars": 350},
-    "1D": {"yf_interval": "1d", "yf_period": "2y", "minutes": 1440, "default_bars": 350},
+    "1M": {"yf_interval": "1m", "yf_period": "7d", "minutes": 1, "default_bars": 500},
+    "3M": {"yf_interval": "2m", "yf_period": "7d", "minutes": 3, "default_bars": 500},
+    "5M": {"yf_interval": "5m", "yf_period": "1mo", "minutes": 5, "default_bars": 500},
+    "15M": {"yf_interval": "15m", "yf_period": "2mo", "minutes": 15, "default_bars": 600},
+    "30M": {"yf_interval": "30m", "yf_period": "2mo", "minutes": 30, "default_bars": 600},
+    "1H": {"yf_interval": "1h", "yf_period": "6mo", "minutes": 60, "default_bars": 700},
+    "2H": {"yf_interval": "1h", "yf_period": "1y", "minutes": 120, "default_bars": 750},
+    "4H": {"yf_interval": "1h", "yf_period": "2y", "minutes": 240, "default_bars": 800},
+    "1D": {"yf_interval": "1d", "yf_period": "5y", "minutes": 1440, "default_bars": 1000},
 }
 
 
@@ -53,7 +54,7 @@ class HistoricalCandleLoader:
         self._candle_cache: Dict[str, List[Candle]] = {}
         self._cache_ts: Dict[str, float] = {}
 
-    async def get_candles(self, symbol: str, timeframe: str = "15M", limit: int = 350) -> List[Candle]:
+    async def get_candles(self, symbol: str, timeframe: str = "15M", limit: int = 500) -> List[Candle]:
         """
         Fetch OHLCV candles for given symbol and timeframe ('4H', '1H', '15M', '5M', '1D').
         Enforces 60-second TTL cache for real-time responsiveness.
@@ -108,6 +109,16 @@ class HistoricalCandleLoader:
                     if tf == "4H":
                         # Resample 1h to 4h
                         resampled = hist.resample("4h").agg({
+                            "Open": "first",
+                            "High": "max",
+                            "Low": "min",
+                            "Close": "last",
+                            "Volume": "sum",
+                        }).dropna()
+                        hist = resampled
+                    elif tf == "2H":
+                        # Resample 1h to 2h
+                        resampled = hist.resample("2h").agg({
                             "Open": "first",
                             "High": "max",
                             "Low": "min",
