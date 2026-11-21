@@ -210,7 +210,7 @@ async function bootstrap() {
       fetchOrders(),
       fetchTrades(),
       fetchRiskMetrics(),
-      fetchCandles(store.selectedSymbol, 60),
+      fetchCandles(store.selectedSymbol, 500),
       fetchOrderBook(store.selectedSymbol),
       fetchIPOs(),
       fetchAdvisorySignals(),

@@ -181,7 +181,7 @@ export class SMCOverlayRenderer {
     // Coordinate conversion helpers with startIdx offset for multi-day panning
     const getX = (absIndex: number): number => {
       const step = chartW / candles.length;
-      const relIdx = absIndex >= startIdx ? absIndex - startIdx : 0;
+      const relIdx = absIndex - startIdx;
       return padding.left + relIdx * step + step / 2;
     };
 
@@ -190,12 +190,12 @@ export class SMCOverlayRenderer {
       return padding.top + chartH * (1 - normalized);
     };
 
-    // Queue of margin tags for non-overlapping layout
+    // Queue of strictly the top 4 active margin tags (Live Price, ENTRY, SL, TP1)
     const tags: MarginTag[] = [];
 
     ctx.save();
 
-    // 1. Auto-Fibonacci Golden Pocket & 50% Equilibrium Line
+    // 1. Auto-Fibonacci Golden Pocket & 50% Equilibrium Line (Labels rendered cleanly inside chart)
     if (this.toggles.showFibonacci && this.smcData?.fibonacci) {
       const fib = this.smcData.fibonacci;
       const eqY = getY(fib.equilibrium_price);
@@ -214,7 +214,10 @@ export class SMCOverlayRenderer {
       ctx.moveTo(padding.left, eqY);
       ctx.lineTo(width - padding.right, eqY);
       ctx.stroke();
-      tags.push({ y: eqY, text: '50% EQ', bgColor: '#475569', textColor: '#FFFFFF', priority: 25 });
+
+      ctx.font = 'bold 9px "JetBrains Mono", monospace';
+      ctx.fillStyle = '#64748B';
+      ctx.fillText('50% EQUILIBRIUM', padding.left + 14, eqY - 4);
 
       // OTE Sweet Spot (0.705)
       const sweetY = getY(fib.ote_sweet_spot);
@@ -224,11 +227,13 @@ export class SMCOverlayRenderer {
       ctx.moveTo(padding.left, sweetY);
       ctx.lineTo(width - padding.right, sweetY);
       ctx.stroke();
-      tags.push({ y: sweetY, text: 'OTE .705', bgColor: '#D97706', textColor: '#FFFFFF', priority: 35 });
+
+      ctx.fillStyle = '#D97706';
+      ctx.fillText('FIB OTE 0.705 SWEET-SPOT', padding.left + 14, sweetY - 4);
       ctx.setLineDash([]);
     }
 
-    // 2. Order Blocks (OB) & Fair Value Gaps (FVG) - Limited to last 2 active levels
+    // 2. Order Blocks (OB) & Fair Value Gaps (FVG) - Labels rendered cleanly INSIDE the chart canvas
     if (this.toggles.showOrderBlocks && this.smcData?.poi) {
       const poi = this.smcData.poi;
 
@@ -238,7 +243,8 @@ export class SMCOverlayRenderer {
         const topY = getY(ob.top);
         const botY = getY(ob.bottom);
         const obH = Math.max(3, Math.abs(botY - topY));
-        const startX = Math.max(padding.left, getX(Math.max(0, ob.candle_index)));
+        const rawStartX = getX(Math.max(0, ob.candle_index));
+        const startX = Math.max(padding.left, rawStartX);
         const isDemand = ob.block_type === 'BULLISH_DEMAND';
 
         ctx.fillStyle = isDemand ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)';
@@ -246,18 +252,22 @@ export class SMCOverlayRenderer {
         ctx.lineWidth = ob.is_mitigated ? 1 : 1.5;
         ctx.setLineDash(ob.is_mitigated ? [3, 3] : []);
 
-        const obWidth = width - padding.right - startX;
-        ctx.fillRect(startX, Math.min(topY, botY), obWidth, obH);
-        ctx.strokeRect(startX, Math.min(topY, botY), obWidth, obH);
+        const obWidth = Math.max(0, width - padding.right - startX);
+        if (obWidth > 0 && rawStartX <= width - padding.right) {
+          ctx.fillRect(startX, Math.min(topY, botY), obWidth, obH);
+          ctx.strokeRect(startX, Math.min(topY, botY), obWidth, obH);
 
-        const obMidY = (topY + botY) / 2;
-        tags.push({
-          y: obMidY,
-          text: isDemand ? 'DEMAND OB' : 'SUPPLY OB',
-          bgColor: isDemand ? '#059669' : '#DC2626',
-          textColor: '#FFFFFF',
-          priority: 55,
-        });
+          // Render OB Label cleanly inside canvas (no colliding margin pills)
+          if (obWidth > 30) {
+            ctx.save();
+            ctx.font = 'bold 9px "JetBrains Mono", monospace';
+            ctx.fillStyle = isDemand ? '#059669' : '#DC2626';
+            const labelX = Math.max(padding.left + 6, startX + 6);
+            const labelY = Math.min(topY, botY) + 11;
+            ctx.fillText(isDemand ? 'DEMAND OB (92%+)' : 'SUPPLY OB (94%+)', labelX, labelY);
+            ctx.restore();
+          }
+        }
       }
 
       // FVGs (last 2 max)
@@ -266,7 +276,8 @@ export class SMCOverlayRenderer {
         const topY = getY(fvg.top);
         const botY = getY(fvg.bottom);
         const fvgH = Math.max(3, Math.abs(botY - topY));
-        const startX = Math.max(padding.left, getX(Math.max(0, fvg.candle_index)));
+        const rawStartX = getX(Math.max(0, fvg.candle_index));
+        const startX = Math.max(padding.left, rawStartX);
         const isBull = fvg.direction === 'BULLISH';
 
         ctx.fillStyle = isBull ? 'rgba(37, 99, 235, 0.10)' : 'rgba(217, 119, 6, 0.10)';
@@ -274,28 +285,34 @@ export class SMCOverlayRenderer {
         ctx.lineWidth = 1;
         ctx.setLineDash([2, 2]);
 
-        const fvgWidth = width - padding.right - startX;
-        ctx.fillRect(startX, Math.min(topY, botY), fvgWidth, fvgH);
-        ctx.strokeRect(startX, Math.min(topY, botY), fvgWidth, fvgH);
+        const fvgWidth = Math.max(0, width - padding.right - startX);
+        if (fvgWidth > 0 && rawStartX <= width - padding.right) {
+          ctx.fillRect(startX, Math.min(topY, botY), fvgWidth, fvgH);
+          ctx.strokeRect(startX, Math.min(topY, botY), fvgWidth, fvgH);
 
-        const ceY = getY(fvg.midpoint_consequent_encroachment);
-        ctx.beginPath();
-        ctx.moveTo(startX, ceY);
-        ctx.lineTo(width - padding.right, ceY);
-        ctx.stroke();
+          const ceY = getY(fvg.midpoint_consequent_encroachment);
+          ctx.beginPath();
+          ctx.moveTo(startX, ceY);
+          ctx.lineTo(width - padding.right, ceY);
+          ctx.stroke();
 
-        tags.push({
-          y: ceY,
-          text: 'FVG 50%',
-          bgColor: isBull ? '#2563EB' : '#D97706',
-          textColor: '#FFFFFF',
-          priority: 45,
-        });
+          // Render FVG Label cleanly inside canvas (no colliding margin pills)
+          if (fvgWidth > 30) {
+            ctx.save();
+            ctx.font = 'bold 9px "JetBrains Mono", monospace';
+            ctx.fillStyle = isBull ? '#2563EB' : '#D97706';
+            const labelX = Math.max(padding.left + 6, startX + 6);
+            const labelY = Math.min(topY, botY) + 11;
+            ctx.fillText(isBull ? 'BULLISH FVG (90%+)' : 'BEARISH FVG (90%+)', labelX, labelY);
+            ctx.fillText('50% CE', labelX, ceY - 3);
+            ctx.restore();
+          }
+        }
       }
       ctx.setLineDash([]);
     }
 
-    // 3. Liquidity Pools (BSL & SSL) - Most recent active levels only
+    // 3. Liquidity Pools (BSL & SSL) - Labels rendered cleanly inside canvas along line
     if (this.toggles.showLiquidity && this.smcData?.poi) {
       const poi = this.smcData.poi;
 
@@ -311,7 +328,9 @@ export class SMCOverlayRenderer {
         ctx.lineTo(width - padding.right, bslY);
         ctx.stroke();
 
-        tags.push({ y: bslY, text: 'BSL POOL', bgColor: '#DC2626', textColor: '#FFFFFF', priority: 70 });
+        ctx.font = 'bold 9px "JetBrains Mono", monospace';
+        ctx.fillStyle = '#DC2626';
+        ctx.fillText('BSL POOL • Buy-Side External Liquidity', padding.left + 14, bslY - 4);
       }
 
       if (poi.ssl_pools.length > 0) {
@@ -326,7 +345,9 @@ export class SMCOverlayRenderer {
         ctx.lineTo(width - padding.right, sslY);
         ctx.stroke();
 
-        tags.push({ y: sslY, text: 'SSL POOL', bgColor: '#064e3b', textColor: '#00e676', priority: 70 });
+        ctx.font = 'bold 9px "JetBrains Mono", monospace';
+        ctx.fillStyle = '#059669';
+        ctx.fillText('SSL POOL • Sell-Side Internal Liquidity', padding.left + 14, sslY - 4);
       }
       ctx.setLineDash([]);
     }

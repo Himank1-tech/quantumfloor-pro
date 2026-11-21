@@ -1287,7 +1287,7 @@ export async function refreshSymbolData(): Promise<void> {
 
   try {
     const [candles, book, smc, mtf, debates] = await Promise.all([
-      fetchCandlesPro(sym, tf, 80).catch(() => fetchCandles(sym, 60)),
+      fetchCandlesPro(sym, tf, 500).catch(() => fetchCandles(sym, 500)),
       fetchOrderBook(sym).catch(() => null),
       fetchSMCAnalysis(sym, tf).catch(() => null),
       fetchMTFSetup(sym).catch(() => null),

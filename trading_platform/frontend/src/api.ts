@@ -422,7 +422,7 @@ export async function fetchQuotes(): Promise<Quote[]> {
   return res.json();
 }
 
-export async function fetchCandles(symbol: string, limit: number = 60): Promise<Candle[]> {
+export async function fetchCandles(symbol: string, limit: number = 500): Promise<Candle[]> {
   const res = await fetch(`${API_BASE}/market/candles?symbol=${encodeURIComponent(symbol)}&limit=${limit}`);
   return res.json();
 }

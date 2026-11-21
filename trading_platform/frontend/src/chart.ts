@@ -58,7 +58,7 @@ export class PriceChartEngine {
 
   // Chart view & zoom state
   public panOffset: number = 0; // 0 = pinned to live edge
-  public visibleBars: number = 75; // default visible candles
+  public visibleBars: number = 90; // default visible candles
   private isDragging: boolean = false;
   private dragStartX: number = 0;
   private dragStartPan: number = 0;
@@ -291,19 +291,19 @@ export class PriceChartEngine {
   }
 
   public zoomIn(): void {
-    this.visibleBars = Math.max(16, this.visibleBars - 6);
+    this.visibleBars = Math.max(25, this.visibleBars - 10);
     this.render();
   }
 
   public zoomOut(): void {
-    const maxB = this.candles.length || 300;
-    this.visibleBars = Math.min(maxB, this.visibleBars + 8);
+    const maxB = Math.min(300, this.candles.length || 300);
+    this.visibleBars = Math.min(maxB, this.visibleBars + 15);
     this.render();
   }
 
   public resetView(): void {
     this.panOffset = 0;
-    this.visibleBars = 75;
+    this.visibleBars = 90;
     this.render();
   }
 
@@ -807,7 +807,7 @@ export class PriceChartEngine {
       maxPrice = (prices[prices.length - 1] || 110) * 1.01;
     }
     const rawRange = maxPrice - minPrice;
-    const pad = (rawRange > 0 ? rawRange : maxPrice * 0.05) * 0.10;
+    const pad = (rawRange > 0 ? rawRange : maxPrice * 0.05) * 0.06;
     minPrice -= pad;
     maxPrice += pad;
     const priceRange = maxPrice - minPrice || 1;
@@ -1017,7 +1017,7 @@ export class PriceChartEngine {
     }
 
     const rawRange = maxPrice - minPrice;
-    const pad = (rawRange > 0 ? rawRange : maxPrice * 0.05) * 0.10;
+    const pad = (rawRange > 0 ? rawRange : maxPrice * 0.05) * 0.06;
     minPrice -= pad;
     maxPrice += pad;
     const priceRange = maxPrice - minPrice;
