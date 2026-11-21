@@ -76,14 +76,14 @@ SCENES = [
         "name": "Live Indian Equities & 8 Timeframe Superchart",
         "badge": "NSE / BSE EQUITIES",
         "title": "8-TIMEFRAME SUPERCHART & ERGONOMICS",
-        "subtitle": "1M to 1D Granularity, Interactive Drag Panning, Zoom & Fullscreen Maximize",
+        "subtitle": "350+ Multi-Day Candles, Day-Break Dividers, Market Integrity Badge & Fullscreen",
         "script": (
-            "QuantumFloor Pro streams live market feeds directly from Indian exchanges. "
-            "On the real-time ticker ribbon, selecting Reliance Industries, Tata Consultancy Services, or HDFC Bank "
-            "immediately refreshes the institutional superchart. "
-            "Traders can seamlessly toggle across eight timeframes from one minute up to one day, "
-            "interactively pan historical price action with smooth click-and-drag mechanics, "
-            "zoom in and out with dedicated toolbar controls, and maximize the superchart to full screen for deep structural inspection."
+            "QuantumFloor Pro streams live market feeds directly from Indian exchanges with sub-fifteen second ticks and zero mock data. "
+            "On the real-time ticker ribbon, selecting Reliance Industries, TCS, or HDFC Bank "
+            "immediately updates the institutional superchart across more than three hundred multi-day candles. "
+            "Vertical dashed Day-Break Separator Lines clearly delineate daily trading sessions, "
+            "while the real-time Market Feed Integrity Badge confirms full synchronization with exchange clocks. "
+            "Traders can smoothly pan across historical sessions, zoom with precision controls, and maximize to full screen."
         ),
     },
     {
@@ -141,16 +141,16 @@ SCENES = [
     },
     {
         "id": "scene8",
-        "name": "Quick Execution Order Ticket & Realtime Trade Blotter with Neon S3 Export",
+        "name": "Quick Execution Order Ticket & Direct CSV Trade Blotter",
         "badge": "ORDER EXECUTION",
         "title": "QUICK ORDER TICKET & REALTIME BLOTTER",
-        "subtitle": "Risk Containment Slider, Paper/Live Modes & Cloud S3 Trade Export",
+        "subtitle": "Risk Containment Slider, Locked Live Quotes & Direct CSV Export",
         "script": (
             "Traders can execute orders with institutional safety using the Quick Order Ticket. "
-            "The dynamic risk slider adjusts position size according to strict risk parameters, "
-            "while the toggle switches between paper simulation and live broker execution. "
+            "Prices are strictly locked to live real-time market quotes, while the dynamic risk slider configures position size according to capital limits. "
+            "The toggle allows switching between risk-free paper simulation and live broker execution. "
             "Executed orders are instantly recorded in the Realtime Trade Blotter with fee and slippage accounting, "
-            "and can be exported directly to Neon Object Storage."
+            "and can be exported instantly via direct CSV download with zero cloud access errors."
         ),
     },
     {
@@ -168,16 +168,17 @@ SCENES = [
     },
     {
         "id": "scene10",
-        "name": "Quantitative Strategy Backtest Lab, Live Macro News Wire & Mobile Ergonomics",
-        "badge": "QUANT LAB & LIVE WIRE",
-        "title": "QUANT STUDIO, NEWS WIRE & MOBILE VIEW",
-        "subtitle": "Algorithmic Confluence, Live Macro Headlines, OAuth & Mobile Ergonomics",
+        "name": "Candlestick Backtest Replay Lab, Multi-Broker Vault & Mobile View",
+        "badge": "QUANT LAB & SECURITY",
+        "title": "CANDLESTICK REPLAY LAB & BROKER VAULT",
+        "subtitle": "Bar-by-Bar Replay, Multi-Broker Fernet Vault, Demo Login & Mobile Ergonomics",
         "script": (
-            "In the Quantitative Strategy Studio, traders evaluate algorithmic setups across historical market data "
-            "with instant equity curve and drawdown metrics, accompanied by a real-time institutional news wire. "
-            "Google OAuth two-point-zero and Fernet vault encryption safeguard broker connectivity across Zerodha, Groww, and MetaTrader. "
-            "On mobile devices, QuantumFloor Pro delivers flawless responsive ergonomics with zero horizontal overflow "
-            "and a dedicated half-sheet AI assistant. Institutional finance, elevated."
+            "In the Quantitative Strategy Studio, traders replay multi-day candlestick sequences bar-by-bar up to ten-x speed, "
+            "rendering real-time buy and sell executions with shaded take profit and stop loss zones alongside cumulative equity curves. "
+            "The Security Command Center safeguards live connections to Zerodha Kite Connect, Groww, Angel One, OANDA, and MetaTrader under AES-128 Fernet encryption, "
+            "featuring one-click Demo Trader access and password resets. "
+            "On mobile viewports, QuantumFloor Pro delivers flawless responsive ergonomics with zero horizontal overflow "
+            "and an intuitive half-sheet AI assistant. Institutional finance, elevated."
         ),
     },
 ]
@@ -846,7 +847,7 @@ async def record_scene_video(context, page, scene, target_duration: float):
         await asyncio.sleep(2.5)
 
     elif sid == "scene10":
-        # Scene 10: Quantitative Strategy Backtest Lab, Live Macro Wire & Mobile Ergonomics
+        # Scene 10: Candlestick Backtest Replay Lab, Multi-Broker Vault & Mobile Ergonomics
         await page.evaluate("window.scrollTo({ top: 0, behavior: 'smooth' });")
         await asyncio.sleep(0.8)
         # Click Backtest Lab nav tab
@@ -856,20 +857,33 @@ async def record_scene_video(context, page, scene, target_duration: float):
         # Click Strategy Preset 01 (SMC Liquidity Sweep & OTE)
         await smooth_move(320, 160, click=True)
         await page.evaluate("() => { const p = document.querySelector('.strategy-preset-card[data-preset=\"SMC_SWEEP\"]'); if(p) p.click(); }")
+        await asyncio.sleep(2.2)
+        # Highlight Candlestick Replay Canvas
+        await smooth_move(500, 340)
+        await asyncio.sleep(1.2)
+        # Tap 10x speed chip
+        await smooth_move(660, 240, click=True)
+        await page.evaluate("() => { const b = document.querySelector('.speed-chip[data-speed=\"100\"]'); if(b) b.click(); }")
+        await asyncio.sleep(0.8)
+        # Click ▶ Play button on bar-by-bar replay player
+        await smooth_move(420, 240, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-replay-play'); if(b) b.click(); }")
         await asyncio.sleep(2.5)
-        # Highlight 4 Executive Metric Cards (Net Return %, Sharpe Ratio, Win Rate %, Max Drawdown %)
-        await smooth_move(450, 290)
-        await asyncio.sleep(1.8)
-        # Highlight Glowing Cyan-Emerald Equity Curve Canvas
-        await smooth_move(600, 440)
+        # Pause replay
+        await page.evaluate("() => { const b = document.getElementById('btn-replay-pause'); if(b) b.click(); }")
+        await asyncio.sleep(0.8)
+        # Click Direct CSV Export button
+        await smooth_move(220, 210, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-export-backtest-csv'); if(b) b.click(); }")
+        await asyncio.sleep(1.5)
+        # Quick view of Security & Multi-Broker Vault
+        await smooth_move(880, 30, click=True)
+        await page.evaluate("() => { const tab = document.querySelector('button.nav-tab-item[data-view=\"SECURITY\"]'); if(tab) tab.click(); }")
         await asyncio.sleep(2.0)
-        # Open Economic News & Live Institutional Wire
-        await smooth_move(780, 30, click=True)
-        await page.evaluate("() => { const tab = document.querySelector('button.nav-tab-item[data-view=\"NEWS\"]') || document.getElementById('nav-session-trigger'); if(tab) tab.click(); }")
-        await asyncio.sleep(2.0)
-        # Close News drawer
-        await page.evaluate("() => { const b = document.getElementById('news-close-btn') || document.querySelector('.modal-close-btn'); if(b) b.click(); }")
-        await asyncio.sleep(1.0)
+        # Highlight broker cards & click Test Ping
+        await smooth_move(400, 380, click=True)
+        await page.evaluate("() => { const b = document.querySelector('.btn-test-broker-card'); if(b) b.click(); }")
+        await asyncio.sleep(1.5)
         # Demonstrate Mobile Viewport (390x844)
         print("  📱 Demonstrating Mobile Layout (390x844)...")
         await page.set_viewport_size({"width": 390, "height": 844})
