@@ -1084,7 +1084,8 @@ async def produce_full_video():
             # Pre-Roll Hydration Gate with Retries: Ensure UI, Canvas, and Quotes are 100% loaded before scene actions begin
             t_rec_start = asyncio.get_event_loop().time()
             page_loaded = False
-            for attempt in range(3):
+            retry_delays = [2.0, 4.0, 7.0, 10.0, 15.0, 20.0]
+            for attempt in range(len(retry_delays)):
                 try:
                     await page.goto(BASE_URL, wait_until="domcontentloaded", timeout=45000)
                     await page.wait_for_selector("#app", state="attached", timeout=35000)
@@ -1094,8 +1095,9 @@ async def produce_full_video():
                     page_loaded = True
                     break
                 except Exception as ex:
-                    print(f"  ⚠️ Pre-roll attempt {attempt+1} warning: {ex}. Retrying...")
-                    await asyncio.sleep(2.0)
+                    wait_s = retry_delays[attempt]
+                    print(f"  ⚠️ Pre-roll attempt {attempt+1}/{len(retry_delays)} warning: {ex}. Retrying in {wait_s:.1f}s...")
+                    await asyncio.sleep(wait_s)
             if not page_loaded:
                 raise RuntimeError(f"Failed to load page for {sid}")
 
