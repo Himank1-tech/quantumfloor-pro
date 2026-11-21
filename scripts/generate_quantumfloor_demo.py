@@ -643,11 +643,13 @@ async def record_scene_video(context, page, scene, target_duration: float):
         await page.evaluate("() => { const b = document.querySelector('.tf-chip-btn[data-tf=\"2H\"]'); if(b) b.click(); }")
         await asyncio.sleep(1.0)
 
-        # Bottom Date Range Presets: Click 1M -> ALL
+        # Bottom Date Range Presets: Click 1M -> 1Y -> ALL to load true multi-year candles
         await page.evaluate("() => { const b = document.querySelector('.date-preset-btn[data-preset=\"1M\"]'); if(b) b.click(); }")
         await asyncio.sleep(0.8)
+        await page.evaluate("() => { const b = document.querySelector('.date-preset-btn[data-preset=\"1Y\"]'); if(b) b.click(); }")
+        await asyncio.sleep(1.0)
         await page.evaluate("() => { const b = document.querySelector('.date-preset-btn[data-preset=\"ALL\"]'); if(b) b.click(); }")
-        await asyncio.sleep(0.8)
+        await asyncio.sleep(1.0)
 
         # Left Toolbar: Select Trendline tool and draw on chart
         await smooth_move(22, 360, click=True)
@@ -671,6 +673,8 @@ async def record_scene_video(context, page, scene, target_duration: float):
         await smooth_move(22, 490, click=True)
         await page.evaluate("() => { const b = document.querySelector('.tv-tool-btn[data-tool=\"long_position\"]'); if(b) b.click(); }")
         await asyncio.sleep(0.6)
+        lp_x = 0
+        lp_y = 0
         if chart_el:
             box = await chart_el.bounding_box()
             if box:
@@ -680,7 +684,10 @@ async def record_scene_video(context, page, scene, target_duration: float):
                 await page.mouse.down()
                 await page.mouse.move(lp_x + 120, lp_y - 40, steps=8)
                 await page.mouse.up()
-                await asyncio.sleep(1.2)
+                await asyncio.sleep(1.0)
+                # Click on drawing to showcase floating Style Bar
+                await page.mouse.click(lp_x + 30, lp_y)
+                await asyncio.sleep(0.8)
 
         # Left Toolbar: Toggle Magnet mode
         await smooth_move(22, 650, click=True)
@@ -700,6 +707,12 @@ async def record_scene_video(context, page, scene, target_duration: float):
         await smooth_move(810, 180, click=True)
         await page.evaluate("() => { const b = document.getElementById('btn-chart-replay'); if(b) b.click(); }")
         await asyncio.sleep(0.8)
+        # Click on chart candle to set replay cut point
+        if chart_el:
+            box = await chart_el.bounding_box()
+            if box:
+                await page.mouse.click(box["x"] + box["width"] * 0.40, box["y"] + box["height"] * 0.5)
+                await asyncio.sleep(0.6)
         # Click Replay Play
         await smooth_move(1100, 240, click=True)
         await page.evaluate("() => { const b = document.getElementById('btn-chart-replay-play'); if(b) b.click(); }")
