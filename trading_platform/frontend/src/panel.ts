@@ -329,7 +329,7 @@ export function renderFloorPanel(): string {
                 <!-- Main High-Performance Canvas Container (520px height) -->
                 <div class="chart-canvas-wrapper" id="price-chart-container"></div>
 
-                <!-- Bottom Date Range Presets Bar -->
+                <!-- Fixed 32px TradingView Chart Footer Bar -->
                 <div class="chart-date-presets-bar" id="chart-date-presets">
                   <span class="date-preset-label">RANGE:</span>
                   <button class="date-preset-btn" data-preset="1D">1D</button>
@@ -339,6 +339,9 @@ export function renderFloorPanel(): string {
                   <button class="date-preset-btn" data-preset="6M">6M</button>
                   <button class="date-preset-btn" data-preset="1Y">1Y</button>
                   <button class="date-preset-btn active" data-preset="ALL">ALL</button>
+                  <div style="flex:1;"></div>
+                  <button class="chart-scale-btn active" id="btn-chart-scale-auto" title="Dynamic Viewport Y-Axis Auto-Scale">Auto</button>
+                  <span class="chart-footer-clock" id="chart-footer-clock">--:--:-- IST</span>
                 </div>
               </div>
             </div>
@@ -964,16 +967,45 @@ function setupEventListeners(): void {
     priceChart?.deleteSelectedDrawing();
   });
 
-  // Date Range Presets
+  // Date Range Presets with True Multi-Year Backend Loading
   document.querySelectorAll('.date-preset-btn').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       document.querySelectorAll('.date-preset-btn').forEach((b) => b.classList.remove('active'));
       const target = e.currentTarget as HTMLElement;
       target.classList.add('active');
       const preset = target.dataset.preset || 'ALL';
+
+      try {
+        const sym = store.selectedSymbol;
+        const tf = store.activeTimeframe || '15M';
+        const candles = await fetchCandlesPro(sym, tf, 1250, preset);
+        if (candles && candles.length > 0) {
+          store.candles = candles;
+          priceChart?.updateCandles(candles);
+        }
+      } catch (err) {
+        // Fallback to local slicing if network delay
+      }
       priceChart?.setDateRange(preset);
     });
   });
+
+  // Auto Y-Axis Scale Toggle & Reset
+  document.getElementById('btn-chart-scale-auto')?.addEventListener('click', () => {
+    priceChart?.resetView();
+  });
+
+  // Footer Market Clock (Live IST + UTC)
+  const updateFooterClock = () => {
+    const clockEl = document.getElementById('chart-footer-clock');
+    if (!clockEl) return;
+    const now = new Date();
+    const ist = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata' });
+    const utc = now.toLocaleTimeString('en-GB', { timeZone: 'UTC' });
+    clockEl.textContent = `${ist} IST • ${utc} UTC`;
+  };
+  updateFooterClock();
+  setInterval(updateFooterClock, 1000);
 
   // Indicators Modal Controls
   const indModal = document.getElementById('indicators-modal');
@@ -1287,7 +1319,7 @@ export async function refreshSymbolData(): Promise<void> {
 
   try {
     const [candles, book, smc, mtf, debates] = await Promise.all([
-      fetchCandlesPro(sym, tf, 500).catch(() => fetchCandles(sym, 500)),
+      fetchCandlesPro(sym, tf, 1200).catch(() => fetchCandles(sym, 1200)),
       fetchOrderBook(sym).catch(() => null),
       fetchSMCAnalysis(sym, tf).catch(() => null),
       fetchMTFSetup(sym).catch(() => null),

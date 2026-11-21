@@ -422,7 +422,7 @@ export async function fetchQuotes(): Promise<Quote[]> {
   return res.json();
 }
 
-export async function fetchCandles(symbol: string, limit: number = 500): Promise<Candle[]> {
+export async function fetchCandles(symbol: string, limit: number = 1200): Promise<Candle[]> {
   const res = await fetch(`${API_BASE}/market/candles?symbol=${encodeURIComponent(symbol)}&limit=${limit}`);
   return res.json();
 }
@@ -1298,8 +1298,11 @@ export async function fetchLiveQuotesPro(): Promise<LiveQuotePro[]> {
   return res.json();
 }
 
-export async function fetchCandlesPro(symbol: string, timeframe: string = '15M', limit: number = 500): Promise<any[]> {
-  const res = await fetch(`${API_BASE}/market/candles?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(timeframe)}&limit=${limit}`);
+export async function fetchCandlesPro(symbol: string, timeframe: string = '15M', limit: number = 1200, range?: string): Promise<any[]> {
+  const url = range
+    ? `${API_BASE}/market/candles?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(timeframe)}&range=${encodeURIComponent(range)}&limit=${limit}`
+    : `${API_BASE}/market/candles?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(timeframe)}&limit=${limit}`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error('Failed to fetch candles');
   return res.json();
 }

@@ -211,10 +211,11 @@ async def get_single_quote(symbol: str):
 async def get_candles(
     symbol: str = Query(..., description="Ticker symbol"),
     timeframe: str = Query("15M", description="Timeframe: 1M, 3M, 5M, 15M, 30M, 1H, 2H, 4H, 1D"),
-    limit: int = 500
+    range: Optional[str] = Query(None, description="Range preset: 1D, 5D, 1M, 3M, 6M, 1Y, ALL"),
+    limit: int = Query(1200, description="Max candles to return (up to 1250)")
 ):
     try:
-        return await historical_candle_loader.get_candles(symbol, timeframe=timeframe, limit=limit)
+        return await historical_candle_loader.get_candles(symbol, timeframe=timeframe, range_preset=range, limit=limit)
     except Exception as e:
         return market.get_candles(symbol, limit=limit)
 

@@ -280,13 +280,13 @@ export class PriceChartEngine {
     const total = this.candles.length;
     if (total === 0) return;
     this.panOffset = 0;
-    if (range === '1D') this.visibleBars = Math.min(total, 35);
+    if (range === '1D') this.visibleBars = Math.min(total, 45);
     else if (range === '5D') this.visibleBars = Math.min(total, 95);
-    else if (range === '1M') this.visibleBars = Math.min(total, 200);
-    else if (range === '3M') this.visibleBars = Math.min(total, 350);
-    else if (range === '6M') this.visibleBars = Math.min(total, 500);
-    else if (range === '1Y') this.visibleBars = Math.min(total, 750);
-    else if (range === 'ALL') this.visibleBars = total;
+    else if (range === '1M') this.visibleBars = Math.min(total, 160);
+    else if (range === '3M') this.visibleBars = Math.min(total, 250);
+    else if (range === '6M') this.visibleBars = Math.min(total, 380);
+    else if (range === '1Y') this.visibleBars = Math.min(total, 500);
+    else if (range === 'ALL') this.visibleBars = Math.min(total, 1250);
     this.render();
   }
 
@@ -414,12 +414,14 @@ export class PriceChartEngine {
       if (e.button !== 0) return;
       const { x, y, price, actualIdx, c } = coordToPriceAndIdx(e.clientX, e.clientY);
 
-      // Replay jump click
-      if (this.replayActive && this.activeTool === 'crosshair' && e.shiftKey) {
-        this.replayIndex = actualIdx;
-        this.render();
-        if (this.onReplayStep) this.onReplayStep(actualIdx);
-        return;
+      // Replay jump click: Clicking any historical candle cuts off future bars cleanly
+      if (this.replayActive && (this.activeTool === 'crosshair' || e.shiftKey)) {
+        if (actualIdx >= 0 && actualIdx < this.candles.length) {
+          this.replayIndex = actualIdx;
+          this.render();
+          if (this.onReplayStep) this.onReplayStep(actualIdx);
+          return;
+        }
       }
 
       // Eraser Tool
@@ -621,10 +623,12 @@ export class PriceChartEngine {
       if (this.activeDragHandle) {
         const item = this.drawings.find(d => d.id === this.activeDragHandle!.drawingId);
         if (item) {
+          const cTime = c?.time || (c as any)?.timestamp;
           if (item.type === 'horizontal') {
             item.points[0].price = price;
           } else if (item.type === 'vertical') {
             item.points[0].barIdx = actualIdx;
+            if (cTime) item.points[0].time = cTime;
           } else if (item.type === 'long_position' || item.type === 'short_position') {
             if (this.activeDragHandle.handleType === 'tp') {
               item.tpPrice = price;
@@ -637,12 +641,14 @@ export class PriceChartEngine {
               if (item.slPrice) item.slPrice += delta;
             } else if (this.activeDragHandle.handleType === 'right' && item.points[1]) {
               item.points[1].barIdx = actualIdx;
+              if (cTime) item.points[1].time = cTime;
             }
           } else if (item.points) {
             const hIdx = parseInt(this.activeDragHandle.handleType, 10);
             if (!isNaN(hIdx) && item.points[hIdx]) {
               item.points[hIdx].price = price;
               item.points[hIdx].barIdx = actualIdx;
+              if (cTime) item.points[hIdx].time = cTime;
             }
           }
           this.render();
@@ -831,9 +837,37 @@ export class PriceChartEngine {
     return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1)));
   }
 
+  public resolvePointBarIndex(p: DrawingPoint): number {
+    if (p.time && this.candles && this.candles.length > 0) {
+      const pMs = new Date(p.time).getTime();
+      if (!isNaN(pMs)) {
+        let bestIdx = 0;
+        let minDiff = Infinity;
+        for (let i = 0; i < this.candles.length; i++) {
+          const c = this.candles[i];
+          const cTime = c.time || (c as any).timestamp;
+          if (cTime) {
+            const cMs = new Date(cTime).getTime();
+            if (!isNaN(cMs)) {
+              const diff = Math.abs(cMs - pMs);
+              if (diff < minDiff) {
+                minDiff = diff;
+                bestIdx = i;
+                if (diff === 0) break;
+              }
+            }
+          }
+        }
+        return bestIdx;
+      }
+    }
+    return Math.max(0, Math.min(this.candles.length - 1, p.barIdx));
+  }
+
   private hitTestDrawing(x: number, y: number): DrawingItem | null {
     if (this.drawings.length === 0) return null;
     const g = this.getGeometry();
+    const getPtX = (p: DrawingPoint) => g.getX(this.resolvePointBarIndex(p) - g.startIdx);
 
     for (let i = this.drawings.length - 1; i >= 0; i--) {
       const d = this.drawings[i];
@@ -845,15 +879,13 @@ export class PriceChartEngine {
           return d;
         }
       } else if (d.type === 'vertical') {
-        const xLine = g.getX(d.points[0].barIdx - g.startIdx);
+        const xLine = getPtX(d.points[0]);
         if (Math.abs(x - xLine) <= 12 && y >= g.pTop && y <= g.pTop + g.chartH) {
           return d;
         }
       } else if (d.type === 'long_position' || d.type === 'short_position') {
-        const rel1 = d.points[0].barIdx - g.startIdx;
-        const rel2 = d.points[1] ? (d.points[1].barIdx - g.startIdx) : (rel1 + 18);
-        const x1 = g.getX(rel1);
-        const x2 = Math.max(x1 + 60, g.getX(rel2));
+        const x1 = getPtX(d.points[0]);
+        const x2 = d.points[1] ? getPtX(d.points[1]) : (x1 + 60);
         const entry = d.entryPrice || d.points[0].price;
         const tp = d.tpPrice || (d.type === 'long_position' ? entry * 1.025 : entry * 0.975);
         const sl = d.slPrice || (d.type === 'long_position' ? entry * 0.988 : entry * 1.012);
@@ -866,10 +898,8 @@ export class PriceChartEngine {
           return d;
         }
       } else if (d.type === 'fib' && d.points.length >= 2) {
-        const rel1 = d.points[0].barIdx - g.startIdx;
-        const rel2 = d.points[1].barIdx - g.startIdx;
-        const x1 = Math.min(g.getX(rel1), g.getX(rel2));
-        const x2 = Math.max(g.getX(rel1), g.getX(rel2)) + 60;
+        const x1 = Math.min(getPtX(d.points[0]), getPtX(d.points[1]));
+        const x2 = Math.max(getPtX(d.points[0]), getPtX(d.points[1])) + 60;
         const y1 = g.getY(d.points[0].price);
         const y2 = g.getY(d.points[1].price);
         const minY = Math.min(y1, y2) - 10;
@@ -878,9 +908,9 @@ export class PriceChartEngine {
           return d;
         }
       } else if (d.points.length >= 2) {
-        const x1 = g.getX(d.points[0].barIdx - g.startIdx);
+        const x1 = getPtX(d.points[0]);
         const y1 = g.getY(d.points[0].price);
-        const x2 = g.getX(d.points[1].barIdx - g.startIdx);
+        const x2 = getPtX(d.points[1]);
         const y2 = g.getY(d.points[1].price);
         if (d.type === 'price_range') {
           const minX = Math.min(x1, x2) - 6;
@@ -897,7 +927,7 @@ export class PriceChartEngine {
           if (dist <= 12) return d;
         }
       } else if (d.points.length === 1) {
-        const px = g.getX(d.points[0].barIdx - g.startIdx);
+        const px = getPtX(d.points[0]);
         const py = g.getY(d.points[0].price);
         if (Math.hypot(x - px, y - py) <= 15) return d;
       }
@@ -912,12 +942,11 @@ export class PriceChartEngine {
 
     const g = this.getGeometry();
     const hitRadius = 12;
+    const getPtX = (p: DrawingPoint) => g.getX(this.resolvePointBarIndex(p) - g.startIdx);
 
     if (item.type === 'long_position' || item.type === 'short_position') {
-      const rel1 = item.points[0].barIdx - g.startIdx;
-      const rel2 = item.points[1] ? (item.points[1].barIdx - g.startIdx) : (rel1 + 18);
-      const x1 = g.getX(rel1);
-      const x2 = Math.max(x1 + 60, g.getX(rel2));
+      const x1 = getPtX(item.points[0]);
+      const x2 = item.points[1] ? getPtX(item.points[1]) : (x1 + 60);
       const midX = (x1 + x2) / 2;
       const entry = item.entryPrice || item.points[0].price;
       const tp = item.tpPrice || (item.type === 'long_position' ? entry * 1.025 : entry * 0.975);
@@ -946,7 +975,7 @@ export class PriceChartEngine {
     if (item.points && item.points.length >= 2) {
       for (let i = 0; i < Math.min(item.points.length, 3); i++) {
         const pt = item.points[i];
-        const px = g.getX(pt.barIdx - g.startIdx);
+        const px = getPtX(pt);
         const py = g.getY(pt.price);
         if (Math.hypot(x - px, y - py) <= hitRadius) {
           return { drawingId: item.id, handleType: String(i) };
@@ -1089,6 +1118,64 @@ export class PriceChartEngine {
       }
       lastDateStr = dateStr;
     }
+
+    // 1c. Fixed 28px TradingView Bottom X-Axis Timeline Strip with Real Calendar Date Labels
+    ctx.save();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(pLeft, pTop + chartH, chartW, pBottom);
+    ctx.strokeStyle = '#E2E8F0';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pLeft, pTop + chartH);
+    ctx.lineTo(pLeft + chartW, pTop + chartH);
+    ctx.stroke();
+
+    if (candleCount > 0) {
+      const firstD = new Date(visibleCandles[0].time || (visibleCandles[0] as any).timestamp);
+      const lastD = new Date(visibleCandles[candleCount - 1].time || (visibleCandles[candleCount - 1] as any).timestamp);
+      const spanDays = Math.max(1, (lastD.getTime() - firstD.getTime()) / (1000 * 3600 * 24));
+
+      const tickTargetPx = 100;
+      const numTicks = Math.max(2, Math.min(10, Math.floor(chartW / tickTargetPx)));
+      const stepIdx = Math.max(1, Math.floor(candleCount / numTicks));
+
+      for (let i = Math.floor(stepIdx / 2); i < candleCount; i += stepIdx) {
+        const c = visibleCandles[i];
+        const timeVal = c.time || (c as any).timestamp;
+        if (!timeVal) continue;
+        const d = new Date(timeVal);
+        if (isNaN(d.getTime())) continue;
+
+        const x = getX(i);
+        ctx.strokeStyle = '#CBD5E1';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, pTop + chartH);
+        ctx.lineTo(x, pTop + chartH + 4);
+        ctx.stroke();
+
+        let label = '';
+        if (spanDays > 300) {
+          const m = d.toLocaleDateString('en-US', { month: 'short' });
+          const y = d.toLocaleDateString('en-US', { year: '2-digit' });
+          label = `${m} '${y}`;
+        } else if (spanDays > 14) {
+          label = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+        } else {
+          const hrs = d.getHours().toString().padStart(2, '0');
+          const mins = d.getMinutes().toString().padStart(2, '0');
+          const day = d.getDate();
+          label = `${day} ${d.toLocaleDateString('en-US', { month: 'short' })} ${hrs}:${mins}`;
+        }
+
+        ctx.font = '600 9px "JetBrains Mono", monospace';
+        ctx.fillStyle = '#64748B';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, x, pTop + chartH + 14);
+      }
+    }
+    ctx.restore();
 
     // 2. Draw Candlesticks (Emerald #10B981 & Crimson #EF4444)
     for (let i = 0; i < candleCount; i++) {
@@ -1254,13 +1341,15 @@ export class PriceChartEngine {
         if (timeVal) {
           const d = new Date(timeVal);
           const dateStr = !isNaN(d.getTime())
-            ? d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+            ? (d.getHours() === 0 && d.getMinutes() === 0
+                ? d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: '2-digit' })
+                : d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }))
             : String(timeVal).slice(0, 16);
           ctx.font = 'bold 9px "JetBrains Mono", monospace';
-          const tPillW = ctx.measureText(dateStr).width + 12;
-          const tPillH = 18;
+          const tPillW = ctx.measureText(dateStr).width + 14;
+          const tPillH = 20;
           const tPillX = Math.max(pLeft, Math.min(pLeft + chartW - tPillW, hx - tPillW / 2));
-          const tPillY = pTop + chartH + 2;
+          const tPillY = pTop + chartH + 3;
 
           ctx.fillStyle = '#0F172A';
           ctx.beginPath();
@@ -1329,6 +1418,7 @@ export class PriceChartEngine {
   private renderDrawings(ctx: CanvasRenderingContext2D, g: any): void {
     const allDrawings = [...this.drawings];
     if (this.pendingDrawing) allDrawings.push(this.pendingDrawing);
+    const getPtX = (p: DrawingPoint) => g.getX(this.resolvePointBarIndex(p) - g.startIdx);
 
     for (const d of allDrawings) {
       if (d.symbol && d.symbol !== this.currentSymbol) continue;
@@ -1367,8 +1457,7 @@ export class PriceChartEngine {
       }
 
       else if (d.type === 'vertical' && d.points[0]) {
-        const rel = d.points[0].barIdx - g.startIdx;
-        const x = g.getX(rel);
+        const x = getPtX(d.points[0]);
         ctx.beginPath();
         ctx.moveTo(x, g.pTop);
         ctx.lineTo(x, g.pTop + g.chartH);
@@ -1385,11 +1474,9 @@ export class PriceChartEngine {
       }
 
       else if (d.type === 'trendline' && d.points.length >= 2) {
-        const rel1 = d.points[0].barIdx - g.startIdx;
-        const rel2 = d.points[1].barIdx - g.startIdx;
-        const x1 = g.getX(rel1);
+        const x1 = getPtX(d.points[0]);
         const y1 = g.getY(d.points[0].price);
-        const x2 = g.getX(rel2);
+        const x2 = getPtX(d.points[1]);
         const y2 = g.getY(d.points[1].price);
 
         ctx.beginPath();
@@ -1409,11 +1496,9 @@ export class PriceChartEngine {
       }
 
       else if (d.type === 'ray' && d.points.length >= 2) {
-        const rel1 = d.points[0].barIdx - g.startIdx;
-        const rel2 = d.points[1].barIdx - g.startIdx;
-        const x1 = g.getX(rel1);
+        const x1 = getPtX(d.points[0]);
         const y1 = g.getY(d.points[0].price);
-        const x2 = g.getX(rel2);
+        const x2 = getPtX(d.points[1]);
         const y2 = g.getY(d.points[1].price);
 
         const slope = (x2 !== x1) ? (y2 - y1) / (x2 - x1) : 0;
@@ -1436,11 +1521,9 @@ export class PriceChartEngine {
       }
 
       else if (d.type === 'channel' && d.points.length >= 2) {
-        const rel1 = d.points[0].barIdx - g.startIdx;
-        const rel2 = d.points[1].barIdx - g.startIdx;
-        const x1 = g.getX(rel1);
+        const x1 = getPtX(d.points[0]);
         const y1 = g.getY(d.points[0].price);
-        const x2 = g.getX(rel2);
+        const x2 = getPtX(d.points[1]);
         const y2 = g.getY(d.points[1].price);
         const offset = 26;
 
@@ -1474,10 +1557,8 @@ export class PriceChartEngine {
       }
 
       else if (d.type === 'fib' && d.points.length >= 2) {
-        const rel1 = d.points[0].barIdx - g.startIdx;
-        const rel2 = d.points[1].barIdx - g.startIdx;
-        const x1 = Math.min(g.getX(rel1), g.getX(rel2));
-        const x2 = Math.max(g.getX(rel1), g.getX(rel2)) + 60;
+        const x1 = Math.min(getPtX(d.points[0]), getPtX(d.points[1]));
+        const x2 = Math.max(getPtX(d.points[0]), getPtX(d.points[1])) + 60;
         const p1 = d.points[0].price;
         const p2 = d.points[1].price;
         const diff = p2 - p1;
@@ -1514,9 +1595,9 @@ export class PriceChartEngine {
         }
 
         if (d.id === this.selectedDrawingId) {
-          const px1 = g.getX(d.points[0].barIdx - g.startIdx);
+          const px1 = getPtX(d.points[0]);
           const py1 = g.getY(d.points[0].price);
-          const px2 = g.getX(d.points[1].barIdx - g.startIdx);
+          const px2 = getPtX(d.points[1]);
           const py2 = g.getY(d.points[1].price);
           ctx.fillStyle = '#FFFFFF';
           ctx.strokeStyle = '#2563EB';
@@ -1529,10 +1610,8 @@ export class PriceChartEngine {
 
       else if ((d.type === 'long_position' || d.type === 'short_position') && d.points[0]) {
         const isLong = d.type === 'long_position';
-        const rel1 = d.points[0].barIdx - g.startIdx;
-        const rel2 = d.points[1] ? (d.points[1].barIdx - g.startIdx) : (rel1 + 18);
-        const x1 = g.getX(rel1);
-        const x2 = Math.max(x1 + 60, g.getX(rel2));
+        const x1 = getPtX(d.points[0]);
+        const x2 = d.points[1] ? getPtX(d.points[1]) : (x1 + 60);
         const entry = d.entryPrice || d.points[0].price;
         const tp = d.tpPrice || (isLong ? entry * 1.025 : entry * 0.975);
         const sl = d.slPrice || (isLong ? entry * 0.988 : entry * 1.012);
@@ -1601,11 +1680,9 @@ export class PriceChartEngine {
       }
 
       else if (d.type === 'price_range' && d.points.length >= 2) {
-        const rel1 = d.points[0].barIdx - g.startIdx;
-        const rel2 = d.points[1].barIdx - g.startIdx;
-        const x1 = g.getX(rel1);
+        const x1 = getPtX(d.points[0]);
         const y1 = g.getY(d.points[0].price);
-        const x2 = g.getX(rel2);
+        const x2 = getPtX(d.points[1]);
         const y2 = g.getY(d.points[1].price);
 
         const left = Math.min(x1, x2);
@@ -1617,7 +1694,7 @@ export class PriceChartEngine {
         const pDiff = p2 - p1;
         const pPct = p1 > 0 ? (pDiff / p1) * 100 : 0;
         const pips = Math.abs(pDiff) * 10;
-        const bars = Math.abs(d.points[1].barIdx - d.points[0].barIdx);
+        const bars = Math.abs(this.resolvePointBarIndex(d.points[1]) - this.resolvePointBarIndex(d.points[0]));
 
         ctx.fillStyle = 'rgba(37, 99, 235, 0.12)';
         ctx.fillRect(left, top, right - left, bot - top);
@@ -1649,13 +1726,11 @@ export class PriceChartEngine {
       }
 
       else if (d.type === 'date_range' && d.points.length >= 2) {
-        const rel1 = d.points[0].barIdx - g.startIdx;
-        const rel2 = d.points[1].barIdx - g.startIdx;
-        const x1 = g.getX(rel1);
-        const x2 = g.getX(rel2);
+        const x1 = getPtX(d.points[0]);
+        const x2 = getPtX(d.points[1]);
         const left = Math.min(x1, x2);
         const right = Math.max(x1, x2);
-        const bars = Math.abs(d.points[1].barIdx - d.points[0].barIdx);
+        const bars = Math.abs(this.resolvePointBarIndex(d.points[1]) - this.resolvePointBarIndex(d.points[0]));
 
         ctx.fillStyle = 'rgba(100, 116, 139, 0.12)';
         ctx.fillRect(left, g.pTop, right - left, g.chartH);
@@ -1694,8 +1769,7 @@ export class PriceChartEngine {
         ctx.beginPath();
         for (let i = 0; i < d.points.length; i++) {
           const pt = d.points[i];
-          const rel = pt.barIdx - g.startIdx;
-          const x = g.getX(rel);
+          const x = getPtX(pt);
           const y = g.getY(pt.price);
           if (i === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
@@ -1704,8 +1778,7 @@ export class PriceChartEngine {
       }
 
       else if (d.type === 'text' && d.points[0] && d.text) {
-        const rel = d.points[0].barIdx - g.startIdx;
-        const x = g.getX(rel);
+        const x = getPtX(d.points[0]);
         const y = g.getY(d.points[0].price);
 
         ctx.font = 'bold 10px "JetBrains Mono", monospace';
