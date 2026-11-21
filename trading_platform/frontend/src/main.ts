@@ -46,6 +46,7 @@ import {
 } from './api';
 
 let lastRenderedView: MainViewTab | null = null;
+let lastRenderedUserKey: string | null = null;
 let newsDrawer: NewsDrawer | null = null;
 let tradeCalculator: TradeCalculatorModal | null = null;
 let aiCopilot: AICopilotWidget | null = null;
@@ -124,11 +125,17 @@ function renderApp() {
     aiCopilot.setContext(store.selectedSymbol, curQuote.last_price, activeMTFReport);
   }
 
-  // Check if main view changed
+  // Check if main view changed or if authentication state mutated
   const currentView = store.activeMainView;
+  const currentUserKey = store.currentUser 
+    ? `${store.currentUser.user_id}:${store.currentUser.role}:${store.currentUser.investment_mode}` 
+    : 'unauthenticated';
+  const shouldReRender = (currentView !== lastRenderedView) || (currentView === 'SECURITY' && currentUserKey !== lastRenderedUserKey);
+
   if (viewContainer) {
-    if (currentView !== lastRenderedView) {
+    if (shouldReRender) {
       lastRenderedView = currentView;
+      lastRenderedUserKey = currentUserKey;
       if (currentView === 'FLOOR') {
         viewContainer.innerHTML = renderFloorPanel();
         setupFloorEventListeners();
