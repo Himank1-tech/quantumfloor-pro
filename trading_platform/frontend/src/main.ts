@@ -259,11 +259,15 @@ async function bootstrap() {
         investment_mode: 'AUTONOMOUS_TRADING',
         totp_enabled: false,
       };
-    } else {
+    } else if (!store.currentUser) {
       store.currentUser = null;
     }
-    store.vaultKeys = vaultKeys;
-    store.auditLogs = auditLogs;
+    if (vaultKeys && vaultKeys.length > 0) {
+      store.vaultKeys = vaultKeys;
+    }
+    if (auditLogs && auditLogs.length > 0) {
+      store.auditLogs = auditLogs;
+    }
 
     renderApp();
   } catch (err) {

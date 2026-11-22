@@ -646,6 +646,7 @@ export function setupSecurityEventListeners(): void {
     try {
       const res = await loginUser({ username: 'himankbatra2005@gmail.com', password: 'Admin@QuantumFloor2026' });
       store.currentUser = res.user;
+      store.notify();
       store.vaultKeys = await fetchVaultKeys().catch(() => []);
       store.notify();
     } catch (err: any) {
@@ -657,6 +658,7 @@ export function setupSecurityEventListeners(): void {
     try {
       const res = await loginUser({ username: 'admin@quantumfloor.institutional', password: 'Admin@QuantumFloor2026' });
       store.currentUser = res.user;
+      store.notify();
       store.vaultKeys = await fetchVaultKeys().catch(() => []);
       store.notify();
     } catch (err: any) {
@@ -668,6 +670,7 @@ export function setupSecurityEventListeners(): void {
     try {
       const res = await loginUser({ username: 'trader@quantumfloor.institutional', password: 'Trader@12345' });
       store.currentUser = res.user;
+      store.notify();
       store.vaultKeys = await fetchVaultKeys().catch(() => []);
       store.notify();
     } catch (err: any) {
@@ -679,6 +682,7 @@ export function setupSecurityEventListeners(): void {
     try {
       const res = await demoLogin();
       store.currentUser = res.user;
+      store.notify();
       store.vaultKeys = await fetchVaultKeys().catch(() => []);
       store.notify();
     } catch (err: any) {
