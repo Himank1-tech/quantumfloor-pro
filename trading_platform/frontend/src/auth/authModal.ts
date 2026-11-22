@@ -641,6 +641,62 @@ function getBrokerFormValues() {
 }
 
 export function setupSecurityEventListeners(): void {
+  // Quick Role & Persona Switcher Handlers (Top Priority)
+  document.getElementById('btn-switch-admin')?.addEventListener('click', async () => {
+    try {
+      const res = await loginUser({ username: 'himankbatra2005@gmail.com', password: 'Admin@QuantumFloor2026' });
+      store.currentUser = res.user;
+      store.vaultKeys = await fetchVaultKeys().catch(() => []);
+      store.notify();
+    } catch (err: any) {
+      alert(`Admin switch error: ${err.message}`);
+    }
+  });
+
+  document.getElementById('btn-switch-inst-admin')?.addEventListener('click', async () => {
+    try {
+      const res = await loginUser({ username: 'admin@quantumfloor.institutional', password: 'Admin@QuantumFloor2026' });
+      store.currentUser = res.user;
+      store.vaultKeys = await fetchVaultKeys().catch(() => []);
+      store.notify();
+    } catch (err: any) {
+      alert(`Firm Admin switch error: ${err.message}`);
+    }
+  });
+
+  document.getElementById('btn-switch-trader')?.addEventListener('click', async () => {
+    try {
+      const res = await loginUser({ username: 'trader@quantumfloor.institutional', password: 'Trader@12345' });
+      store.currentUser = res.user;
+      store.vaultKeys = await fetchVaultKeys().catch(() => []);
+      store.notify();
+    } catch (err: any) {
+      alert(`Trader switch error: ${err.message}`);
+    }
+  });
+
+  document.getElementById('btn-switch-demo')?.addEventListener('click', async () => {
+    try {
+      const res = await demoLogin();
+      store.currentUser = res.user;
+      store.vaultKeys = await fetchVaultKeys().catch(() => []);
+      store.notify();
+    } catch (err: any) {
+      alert(`Demo switch error: ${err.message}`);
+    }
+  });
+
+  document.getElementById('btn-switch-guest')?.addEventListener('click', async () => {
+    try {
+      await logoutUser();
+      store.currentUser = null;
+      store.vaultKeys = [];
+      store.notify();
+    } catch (err: any) {
+      alert(`Sign out error: ${err.message}`);
+    }
+  });
+
   // Mode toggle
   document.getElementById('btn-toggle-mode')?.addEventListener('click', async () => {
     const curr = store.currentUser?.investment_mode;
@@ -939,61 +995,5 @@ export function setupSecurityEventListeners(): void {
         }, 2500);
       }, 400);
     });
-  });
-
-  // Quick Role & Persona Switcher Handlers
-  document.getElementById('btn-switch-admin')?.addEventListener('click', async () => {
-    try {
-      const res = await loginUser({ username: 'himankbatra2005@gmail.com', password: 'Admin@QuantumFloor2026' });
-      store.currentUser = res.user;
-      store.vaultKeys = await fetchVaultKeys().catch(() => []);
-      store.notify();
-    } catch (err: any) {
-      alert(`Admin switch error: ${err.message}`);
-    }
-  });
-
-  document.getElementById('btn-switch-inst-admin')?.addEventListener('click', async () => {
-    try {
-      const res = await loginUser({ username: 'admin@quantumfloor.institutional', password: 'Admin@QuantumFloor2026' });
-      store.currentUser = res.user;
-      store.vaultKeys = await fetchVaultKeys().catch(() => []);
-      store.notify();
-    } catch (err: any) {
-      alert(`Firm Admin switch error: ${err.message}`);
-    }
-  });
-
-  document.getElementById('btn-switch-trader')?.addEventListener('click', async () => {
-    try {
-      const res = await loginUser({ username: 'trader@quantumfloor.institutional', password: 'Trader@12345' });
-      store.currentUser = res.user;
-      store.vaultKeys = await fetchVaultKeys().catch(() => []);
-      store.notify();
-    } catch (err: any) {
-      alert(`Trader switch error: ${err.message}`);
-    }
-  });
-
-  document.getElementById('btn-switch-demo')?.addEventListener('click', async () => {
-    try {
-      const res = await demoLogin();
-      store.currentUser = res.user;
-      store.vaultKeys = await fetchVaultKeys().catch(() => []);
-      store.notify();
-    } catch (err: any) {
-      alert(`Demo switch error: ${err.message}`);
-    }
-  });
-
-  document.getElementById('btn-switch-guest')?.addEventListener('click', async () => {
-    try {
-      await logoutUser();
-      store.currentUser = null;
-      store.vaultKeys = [];
-      store.notify();
-    } catch (err: any) {
-      alert(`Sign out error: ${err.message}`);
-    }
   });
 }
