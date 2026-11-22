@@ -81,6 +81,11 @@ export function renderSecurityPanel(): string {
 
   const onlineBrokersCount = brokerCards.filter((b) => b.isConnected).length;
   const isAdmin = u?.role === 'ADMIN';
+  const isLeadAdmin = isAdmin && (u?.email?.includes('himankbatra') || u?.username === 'himankbatra');
+  const isFirmAdmin = isAdmin && !isLeadAdmin;
+  const isQuantTrader = !isAdmin && !!u && (u.username === 'trader1' || u.email?.includes('trader@'));
+  const isDemoTrader = !isAdmin && !!u && (u.username === 'trader_demo' || u.email?.includes('demo@'));
+  const isGuest = !u;
 
   return `
     <div class="enterprise-view-container" style="background:#F8FAFC; min-height:100vh; padding:24px;">
@@ -102,6 +107,61 @@ export function renderSecurityPanel(): string {
               🚪 LOGOUT
             </button>
           ` : ''}
+        </div>
+      </div>
+
+      <!-- Quick Role & Persona Switcher Bar at the Top of Account/Admin View -->
+      <div class="quick-role-switcher-bar">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:34px; height:34px; border-radius:8px; background:#EFF6FF; border:1px solid #BFDBFE; display:flex; align-items:center; justify-content:center; font-size:16px;">
+            ⚡
+          </div>
+          <div>
+            <div style="font-size:12px; font-weight:800; color:#0F172A; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:6px;">
+              <span>Quick Role &amp; Persona Switcher</span>
+              <span style="font-size:10px; font-weight:700; color:#2563EB; background:#EFF6FF; border:1px solid #BFDBFE; padding:1px 6px; border-radius:4px;">1-Click RBAC</span>
+            </div>
+            <div style="font-size:11px; color:#64748B; margin-top:2px;">
+              Active Session: <strong style="color:${isAdmin ? '#2563EB' : u ? '#0EA5E9' : '#64748B'}; font-family:var(--font-mono);">${u ? (u.name || u.username) + ' (' + u.role + ')' : 'Guest Trader (Unauthenticated)'}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="role-selector-pills">
+          <!-- 1. Lead Admin -->
+          <button id="btn-switch-admin" class="role-pill-btn ${isLeadAdmin ? 'active active-admin' : ''}" title="Switch to Lead Administrator (himankbatra2005@gmail.com)">
+            <span>🛡️</span>
+            <span>Lead Admin</span>
+            <span style="font-size:10px; padding:1px 5px; border-radius:4px; font-weight:800; ${isLeadAdmin ? 'background:rgba(255,255,255,0.25); color:#FFFFFF;' : 'background:#EFF6FF; color:#2563EB; border:1px solid #BFDBFE;'}">ADMIN</span>
+          </button>
+
+          <!-- 2. Institutional Firm Admin -->
+          <button id="btn-switch-inst-admin" class="role-pill-btn ${isFirmAdmin ? 'active active-mgmt' : ''}" title="Switch to Institutional Management Admin">
+            <span>🏛️</span>
+            <span>Firm Admin</span>
+            <span style="font-size:10px; padding:1px 5px; border-radius:4px; font-weight:800; ${isFirmAdmin ? 'background:rgba(255,255,255,0.25); color:#FFFFFF;' : 'background:#EEF2FF; color:#4338CA; border:1px solid #C7D2FE;'}">MGMT</span>
+          </button>
+
+          <!-- 3. Senior Quant Trader -->
+          <button id="btn-switch-trader" class="role-pill-btn ${isQuantTrader ? 'active active-trader' : ''}" title="Switch to Senior Quant Trader (trader@quantumfloor.institutional)">
+            <span>📈</span>
+            <span>Quant Trader</span>
+            <span style="font-size:10px; padding:1px 5px; border-radius:4px; font-weight:800; ${isQuantTrader ? 'background:rgba(255,255,255,0.25); color:#FFFFFF;' : 'background:#F0F9FF; color:#0284C7; border:1px solid #BAE6FD;'}">TRADER</span>
+          </button>
+
+          <!-- 4. Demo Guest -->
+          <button id="btn-switch-demo" class="role-pill-btn ${isDemoTrader ? 'active active-demo' : ''}" title="Switch to Demo / Guest Paper Trading">
+            <span>⚡</span>
+            <span>Demo Guest</span>
+            <span style="font-size:10px; padding:1px 5px; border-radius:4px; font-weight:800; ${isDemoTrader ? 'background:rgba(255,255,255,0.25); color:#FFFFFF;' : 'background:#ECFDF5; color:#059669; border:1px solid #A7F3D0;'}">DEMO</span>
+          </button>
+
+          <!-- 5. Visitor / Unauthenticated Gate -->
+          <button id="btn-switch-guest" class="role-pill-btn ${isGuest ? 'active active-guest' : ''}" title="Reset to Unauthenticated Public Visitor Gate">
+            <span>👤</span>
+            <span>Visitor Gate</span>
+            <span style="font-size:10px; padding:1px 5px; border-radius:4px; font-weight:800; ${isGuest ? 'background:rgba(255,255,255,0.25); color:#FFFFFF;' : 'background:#F1F5F9; color:#64748B; border:1px solid #CBD5E1;'}">PUBLIC</span>
+          </button>
         </div>
       </div>
 
@@ -879,5 +939,61 @@ export function setupSecurityEventListeners(): void {
         }, 2500);
       }, 400);
     });
+  });
+
+  // Quick Role & Persona Switcher Handlers
+  document.getElementById('btn-switch-admin')?.addEventListener('click', async () => {
+    try {
+      const res = await loginUser({ username: 'himankbatra2005@gmail.com', password: 'Admin@QuantumFloor2026' });
+      store.currentUser = res.user;
+      store.vaultKeys = await fetchVaultKeys().catch(() => []);
+      store.notify();
+    } catch (err: any) {
+      alert(`Admin switch error: ${err.message}`);
+    }
+  });
+
+  document.getElementById('btn-switch-inst-admin')?.addEventListener('click', async () => {
+    try {
+      const res = await loginUser({ username: 'admin@quantumfloor.institutional', password: 'Admin@QuantumFloor2026' });
+      store.currentUser = res.user;
+      store.vaultKeys = await fetchVaultKeys().catch(() => []);
+      store.notify();
+    } catch (err: any) {
+      alert(`Firm Admin switch error: ${err.message}`);
+    }
+  });
+
+  document.getElementById('btn-switch-trader')?.addEventListener('click', async () => {
+    try {
+      const res = await loginUser({ username: 'trader@quantumfloor.institutional', password: 'Trader@12345' });
+      store.currentUser = res.user;
+      store.vaultKeys = await fetchVaultKeys().catch(() => []);
+      store.notify();
+    } catch (err: any) {
+      alert(`Trader switch error: ${err.message}`);
+    }
+  });
+
+  document.getElementById('btn-switch-demo')?.addEventListener('click', async () => {
+    try {
+      const res = await demoLogin();
+      store.currentUser = res.user;
+      store.vaultKeys = await fetchVaultKeys().catch(() => []);
+      store.notify();
+    } catch (err: any) {
+      alert(`Demo switch error: ${err.message}`);
+    }
+  });
+
+  document.getElementById('btn-switch-guest')?.addEventListener('click', async () => {
+    try {
+      await logoutUser();
+      store.currentUser = null;
+      store.vaultKeys = [];
+      store.notify();
+    } catch (err: any) {
+      alert(`Sign out error: ${err.message}`);
+    }
   });
 }
