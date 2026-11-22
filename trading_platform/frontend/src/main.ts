@@ -165,6 +165,9 @@ function renderApp() {
       // In-place update for active view
       if (currentView === 'FLOOR') {
         renderDashboard();
+      } else if (currentView === 'SECURITY') {
+        viewContainer.innerHTML = renderSecurityPanel();
+        setupSecurityEventListeners();
       }
     }
   }
