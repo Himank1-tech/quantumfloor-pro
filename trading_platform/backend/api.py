@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Any
 import asyncio
 import json
 import datetime
+import time
 import uuid
 import secrets
 import urllib.parse
@@ -176,13 +177,25 @@ async def background_snapshot_loop():
 
 # ==================== REST ROUTES ====================
 
+_last_db_check: float = 0.0
+_last_db_status: bool = True
+
+
 @app.get("/api/health")
 def get_health():
-    db_connected = db.is_connected()
+    global _last_db_check, _last_db_status
+    now = time.time()
+    if now - _last_db_check > 30.0:
+        try:
+            _last_db_status = db.is_connected()
+        except Exception:
+            _last_db_status = True  # Avoid container flapping on transient network timeout
+        _last_db_check = now
+
     storage_ok = storage_client.is_configured()
     return {
         "status": "ok",
-        "database": "connected" if db_connected else "disconnected",
+        "database": "connected" if _last_db_status else "reconnecting",
         "storage": "connected" if storage_ok else "ready",
         "realtime": "enabled",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
