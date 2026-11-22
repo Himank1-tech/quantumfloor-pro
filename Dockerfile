@@ -72,5 +72,5 @@ EXPOSE 8001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8001}/api/health || exit 1
 
-# Start Uvicorn ASGI server with dynamic port binding & 4 high-performance workers
-CMD ["sh", "-c", "uvicorn trading_platform.backend.api:app --host 0.0.0.0 --port ${PORT:-8001} --workers 4"]
+# Start Uvicorn ASGI server with dynamic port binding & memory-safe worker concurrency
+CMD ["sh", "-c", "uvicorn trading_platform.backend.api:app --host 0.0.0.0 --port ${PORT:-8001} --workers ${WEB_CONCURRENCY:-1}"]
