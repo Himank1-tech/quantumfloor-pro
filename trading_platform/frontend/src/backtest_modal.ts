@@ -191,14 +191,43 @@ export class BacktestModal {
     });
   }
 
+  private mapBacktestSymbol(val: string): string {
+    if (!val) return 'RELIANCE.NS';
+    const s = val.trim();
+    if (s.includes('EUR/USD') || s.includes('EURUSD')) return 'EURUSD=X';
+    if (s.includes('GBP/USD') || s.includes('GBPUSD')) return 'GBPUSD=X';
+    if (s.includes('XAU/USD') || s.includes('GOLD')) return 'GC=F';
+    if (s.includes('USD/INR') || s.includes('USDINR')) return 'INR=X';
+    if (s.includes('RELIANCE')) return 'RELIANCE.NS';
+    if (s.includes('TCS')) return 'TCS.NS';
+    if (s.includes('HDFCBANK')) return 'HDFCBANK.NS';
+    if (s.includes('ICICIBANK')) return 'ICICIBANK.NS';
+    if (s.includes('INFY')) return 'INFY.NS';
+    if (s.includes('NIFTY')) return '^NSEI';
+    return s;
+  }
+
+  private mapBacktestTimeframe(val: string): string {
+    if (!val) return '15m';
+    const t = val.trim().toLowerCase();
+    if (t.includes('4-hour') || t === '4h') return '4h';
+    if (t.includes('1-hour') || t === '1h') return '1h';
+    if (t.includes('15-minute') || t === '15m') return '15m';
+    if (t.includes('5-minute') || t === '5m') return '5m';
+    if (t.includes('daily') || t.includes('1d')) return '1d';
+    return t.replace(/[^a-z0-9]/g, '');
+  }
+
   public async executeBacktest() {
-    const sym = (this.container.querySelector('#bt-symbol') as HTMLSelectElement)?.value || 'RELIANCE';
-    const tf = (this.container.querySelector('#bt-timeframe') as HTMLSelectElement)?.value || '15M';
+    const rawSym = (this.container.querySelector('#bt-symbol') as HTMLSelectElement)?.value || 'RELIANCE';
+    const rawTf = (this.container.querySelector('#bt-timeframe') as HTMLSelectElement)?.value || '15M';
+    const sym = this.mapBacktestSymbol(rawSym);
+    const tf = this.mapBacktestTimeframe(rawTf);
     const cap = parseFloat((this.container.querySelector('#bt-capital') as HTMLInputElement)?.value || '100000');
     const risk = parseFloat((this.container.querySelector('#bt-risk') as HTMLInputElement)?.value || '1.0');
 
     const area = this.container.querySelector('#bt-results-area');
-    if (area) area.innerHTML = `<div class="results-loading">Simulating 4-step SMC MTF trades across ${sym} (${tf})...</div>`;
+    if (area) area.innerHTML = `<div class="results-loading">Simulating 4-step SMC MTF trades across ${rawSym} (${rawTf})...</div>`;
 
     try {
       const [report, candles] = await Promise.all([
@@ -208,7 +237,7 @@ export class BacktestModal {
           initial_capital: cap,
           risk_pct_per_trade: risk,
         }),
-        fetchCandlesPro(sym, tf, 120).catch(() => [])
+        fetchCandlesPro(rawSym, rawTf, 120).catch(() => [])
       ]);
 
       this.currentReport = report;

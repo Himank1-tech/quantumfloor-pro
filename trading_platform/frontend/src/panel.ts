@@ -236,6 +236,7 @@ export function renderFloorPanel(): string {
 
               <!-- Superchart Ergonomic Controls: Zoom, Reset, Maximize & Tools -->
               <div class="chart-tool-buttons">
+                <button class="chart-mini-tool-btn" id="btn-chart-tools-toggle" title="Toggle Drawing Tools Strip">✏️ Tools</button>
                 <button class="chart-mini-tool-btn" id="btn-chart-indicators" title="Technical & SMC Indicators">📊 Indicators</button>
                 <button class="chart-mini-tool-btn" id="btn-chart-replay" title="Candlestick Bar Replay Mode">⏪ Replay</button>
                 <button class="chart-mini-tool-btn" id="btn-chart-zoom-in" title="Zoom In (or Mouse Wheel Up)">➕</button>
@@ -887,8 +888,18 @@ function setupEventListeners(): void {
     priceChart?.zoomOut();
   });
 
+  // Mobile Drawing Tools Strip Toggle
+  document.getElementById('btn-chart-tools-toggle')?.addEventListener('click', () => {
+    const tb = document.getElementById('tv-drawing-toolbar');
+    tb?.classList.toggle('mobile-open');
+  });
+
   document.getElementById('btn-chart-reset')?.addEventListener('click', () => {
-    priceChart?.resetView();
+    priceChart?.resetAutoScale();
+  });
+
+  document.getElementById('btn-chart-scale-auto')?.addEventListener('click', () => {
+    priceChart?.resetAutoScale();
   });
 
   document.getElementById('btn-chart-maximize')?.addEventListener('click', () => {

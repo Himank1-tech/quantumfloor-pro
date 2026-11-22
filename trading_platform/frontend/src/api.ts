@@ -615,6 +615,48 @@ export async function fetchAdminRegisteredUsers(): Promise<{ users: any[]; total
   return res.json();
 }
 
+export async function fetchSreMetrics(): Promise<any> {
+  const res = await fetch(`${API_BASE}/admin/sre/metrics`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch SRE metrics');
+  return res.json();
+}
+
+export async function triggerSreIncident(payload: { severity: string; title?: string; status?: string }): Promise<any> {
+  const res = await fetch(`${API_BASE}/admin/sre/incident`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Failed to update incident severity');
+  return res.json();
+}
+
+export async function triggerSreRollback(payload: { target_version?: string }): Promise<any> {
+  const res = await fetch(`${API_BASE}/admin/sre/rollback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Failed to execute version rollback');
+  return res.json();
+}
+
+export async function fetchSreLogs(): Promise<any> {
+  const res = await fetch(`${API_BASE}/admin/sre/logs`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch SRE logs');
+  return res.json();
+}
+
+export async function fetchSreBanner(): Promise<any> {
+  try {
+    const res = await fetch(`${API_BASE}/sre/incident-banner`);
+    if (!res.ok) return { has_incident: false };
+    return res.json();
+  } catch {
+    return { has_incident: false };
+  }
+}
+
 export async function loginUser(credentials: { username: string; password: string }): Promise<any> {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',

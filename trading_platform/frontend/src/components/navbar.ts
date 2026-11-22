@@ -4,6 +4,7 @@
  */
 
 import { store, MainViewTab } from '../state';
+import { fetchSreBanner } from '../api';
 
 export interface NavbarActionCallbacks {
   onOpenCalculator: () => void;
@@ -24,6 +25,12 @@ export function renderNavbar(): string {
   const isNSE = store.activeTab === 'INDIAN_EQUITY';
 
   return `
+    <!-- Global Production Incident Broadcast Banner (if active) -->
+    <div id="global-incident-banner" class="global-incident-banner" style="display:none; background:#FEF2F2; border-bottom:1px solid #FCA5A5; color:#991B1B; padding:6px 16px; font-size:11px; font-weight:700; align-items:center; justify-content:center; gap:8px;">
+      <span class="status-pulse-dot pulse-red"></span>
+      <span id="global-incident-banner-text">PRODUCTION ALERT: Incident broadcast active.</span>
+    </div>
+
     <!-- Top Primary Navbar -->
     <header class="top-navbar">
       <!-- Left: Brand Logo & Segmented Market Switcher -->
@@ -44,6 +51,16 @@ export function renderNavbar(): string {
             <span class="seg-label">FOREX</span>
           </button>
         </div>
+      </div>
+
+      <!-- Universal Global Search Bar (Desktop & Tablet) -->
+      <div class="nav-global-search-container" id="nav-global-search">
+        <div class="nav-search-input-wrapper">
+          <span class="nav-search-icon">🔍</span>
+          <input type="text" id="global-search-input" class="global-search-input" placeholder="Search symbols, trades, SMC setups, tools, news..." autocomplete="off" />
+          <kbd class="nav-search-kbd">Ctrl+K</kbd>
+        </div>
+        <div class="global-search-dropdown" id="global-search-dropdown" style="display:none;"></div>
       </div>
 
       <!-- Center: Clean Navigation Tabs (Desktop >= 1024px) -->
@@ -128,6 +145,15 @@ export function renderNavbar(): string {
             <span class="brand-pill-pro">PRO</span>
           </div>
           <button class="mobile-drawer-close" id="btn-close-mobile-nav" aria-label="Close navigation menu">✕</button>
+        </div>
+
+        <!-- Mobile Global Search -->
+        <div style="padding: 12px 16px 4px 16px;">
+          <div class="nav-search-input-wrapper">
+            <span class="nav-search-icon">🔍</span>
+            <input type="text" id="mobile-global-search-input" class="global-search-input" placeholder="Search markets, tools, setups..." autocomplete="off" />
+          </div>
+          <div class="global-search-dropdown" id="mobile-search-dropdown" style="display:none; position:relative; top:6px;"></div>
         </div>
 
         <!-- Mobile Market Switcher -->
@@ -331,6 +357,26 @@ export function updateNavbarState(): void {
 }
 
 export function setupNavbarEventListeners(): void {
+  // Check for global active SRE incident
+  const checkIncidentBanner = async () => {
+    try {
+      const bannerData = await fetchSreBanner();
+      const bannerEl = document.getElementById('global-incident-banner');
+      const bannerText = document.getElementById('global-incident-banner-text');
+      if (bannerEl && bannerText) {
+        if (bannerData.has_incident && bannerData.incident) {
+          bannerEl.style.display = 'flex';
+          bannerText.textContent = `🚨 ${bannerData.incident.severity}: ${bannerData.incident.title} — ${bannerData.incident.description || 'Engineering team active'}`;
+        } else {
+          bannerEl.style.display = 'none';
+        }
+      }
+    } catch {
+      // ignore
+    }
+  };
+  checkIncidentBanner();
+
   // Mobile drawer controls
   const backdrop = document.getElementById('mobile-nav-backdrop');
   const closeDrawer = () => {
@@ -441,8 +487,185 @@ export function setupNavbarEventListeners(): void {
     store.setMainView('FLOOR');
   });
 
+  // Setup Global Search (Desktop & Mobile)
+  setupGlobalSearch('global-search-input', 'global-search-dropdown', navbarCallbacks, closeDrawer);
+  setupGlobalSearch('mobile-global-search-input', 'mobile-search-dropdown', navbarCallbacks, closeDrawer);
+
   // Live IST Clock update
   updateClockDisplay();
+}
+
+function setupGlobalSearch(
+  inputId: string,
+  dropdownId: string,
+  actions?: NavbarActionCallbacks,
+  closeDrawerFn?: () => void
+) {
+  const searchInput = document.getElementById(inputId) as HTMLInputElement | null;
+  const searchDropdown = document.getElementById(dropdownId);
+  if (!searchInput || !searchDropdown) return;
+
+  const SYMBOLS_LIST = [
+    { sym: 'RELIANCE', name: 'Reliance Industries Ltd', market: 'NSE / BSE', flag: '🇮🇳' },
+    { sym: 'TCS', name: 'Tata Consultancy Services', market: 'NSE / BSE', flag: '🇮🇳' },
+    { sym: 'HDFCBANK', name: 'HDFC Bank Ltd', market: 'NSE / BSE', flag: '🇮🇳' },
+    { sym: 'ICICIBANK', name: 'ICICI Bank Ltd', market: 'NSE / BSE', flag: '🇮🇳' },
+    { sym: 'INFY', name: 'Infosys Ltd', market: 'NSE / BSE', flag: '🇮🇳' },
+    { sym: 'SBIN', name: 'State Bank of India', market: 'NSE / BSE', flag: '🇮🇳' },
+    { sym: 'BHARTIARTL', name: 'Bharti Airtel Ltd', market: 'NSE / BSE', flag: '🇮🇳' },
+    { sym: 'NIFTY 50', name: 'Nifty 50 Index', market: 'NSE Index', flag: '🇮🇳' },
+    { sym: 'BANKNIFTY', name: 'Bank Nifty Index', market: 'NSE Index', flag: '🇮🇳' },
+    { sym: 'EUR/USD', name: 'Euro / US Dollar', market: 'Global Forex', flag: '🌐' },
+    { sym: 'GBP/USD', name: 'British Pound / US Dollar', market: 'Global Forex', flag: '🌐' },
+    { sym: 'USD/INR', name: 'US Dollar / Indian Rupee', market: 'Global Forex', flag: '🌐' },
+    { sym: 'USD/JPY', name: 'US Dollar / Japanese Yen', market: 'Global Forex', flag: '🌐' },
+    { sym: 'XAU/USD', name: 'Gold Spot / US Dollar', market: 'Commodity', flag: '🪙' },
+  ];
+
+  const TOOLS_LIST = [
+    { id: 'tool-backtest', title: 'Backtest Lab', desc: 'Strategy simulation & Bar Replay', icon: '🔬', action: () => store.setMainView('BACKTEST') },
+    { id: 'tool-ipo', title: 'IPO Hub & Wealth', desc: 'Live Mainboard & SME IPOs, SIP Baskets', icon: '📰', action: () => store.setMainView('IPO') },
+    { id: 'tool-news', title: 'Economic News', desc: 'Real-time Macro Events & Sessions', icon: '📅', action: () => actions?.onOpenNews?.() },
+    { id: 'tool-calc', title: 'Pip & Lot Risk Calculator', desc: 'Institutional position sizing', icon: '📐', action: () => actions?.onOpenCalculator?.() },
+    { id: 'tool-copilot', title: 'AI Co-Pilot Assistant', desc: 'Institutional SMC trade rationale', icon: '✨', action: () => actions?.onOpenCopilot?.() },
+    { id: 'tool-fvg', title: '90% FVG (Fair Value Gap)', desc: 'Institutional order imbalance zones', icon: '⚡', action: () => { store.setMainView('FLOOR'); } },
+    { id: 'tool-ob', title: 'Order Blocks (OB)', desc: 'High-probability smart money footprints', icon: '🧱', action: () => { store.setMainView('FLOOR'); } },
+    { id: 'tool-liq', title: 'Internal & External Liquidity', desc: 'Buy/Sell-side liquidity sweep pools', icon: '💧', action: () => { store.setMainView('FLOOR'); } },
+    { id: 'tool-sr', title: 'Support & Resistance (BOS/CHoCH)', desc: 'Market structure break & change of character', icon: '📊', action: () => { store.setMainView('FLOOR'); } },
+    { id: 'tool-fib', title: 'OTE Fibonacci Retracement', desc: '0.618 - 0.786 Optimal Trade Entry', icon: '≋', action: () => { store.setMainView('FLOOR'); } },
+    { id: 'tool-vault', title: 'Multi-Broker Vault & Security', desc: 'AES-128 Fernet broker encryption', icon: '🔐', action: () => store.setMainView('SECURITY') },
+  ];
+
+  const performSearch = (q: string) => {
+    const query = q.trim().toLowerCase();
+    if (!query) {
+      searchDropdown.style.display = 'none';
+      searchDropdown.innerHTML = '';
+      return;
+    }
+
+    const matchedSymbols = SYMBOLS_LIST.filter(
+      (s) => s.sym.toLowerCase().includes(query) || s.name.toLowerCase().includes(query)
+    );
+
+    const activeTrades = (store.trades || []).filter(
+      (t) => t.symbol.toLowerCase().includes(query) || (t.order_id && t.order_id.toLowerCase().includes(query)) || t.side.toLowerCase().includes(query)
+    );
+
+    const matchedTools = TOOLS_LIST.filter(
+      (t) => t.title.toLowerCase().includes(query) || t.desc.toLowerCase().includes(query)
+    );
+
+    let html = '';
+
+    if (matchedSymbols.length > 0) {
+      html += `<div class="search-category-header">MARKETS &amp; SYMBOLS</div>`;
+      for (const s of matchedSymbols.slice(0, 5)) {
+        html += `
+          <div class="search-result-item" data-action="symbol" data-sym="${s.sym}">
+            <div class="search-item-left">
+              <span class="search-item-flag">${s.flag}</span>
+              <div>
+                <span class="search-item-title">${s.sym}</span>
+                <span class="search-item-sub">${s.name} • ${s.market}</span>
+              </div>
+            </div>
+            <span class="search-jump-badge">Jump to Chart ›</span>
+          </div>
+        `;
+      }
+    }
+
+    if (activeTrades.length > 0) {
+      html += `<div class="search-category-header">ACTIVE TRADES &amp; BLOTTER</div>`;
+      for (const tr of activeTrades.slice(0, 3)) {
+        html += `
+          <div class="search-result-item" data-action="trade" data-sym="${tr.symbol}">
+            <div class="search-item-left">
+              <span class="search-item-side ${tr.side.toLowerCase()}">${tr.side}</span>
+              <div>
+                <span class="search-item-title">${tr.symbol} • ${tr.quantity} Qty @ ${tr.price}</span>
+                <span class="search-item-sub">Order ${tr.order_id || tr.trade_id}</span>
+              </div>
+            </div>
+            <span class="search-jump-badge">Highlight ›</span>
+          </div>
+        `;
+      }
+    }
+
+    if (matchedTools.length > 0) {
+      html += `<div class="search-category-header">PLATFORM TOOLS &amp; FEATURES</div>`;
+      for (const tl of matchedTools.slice(0, 4)) {
+        html += `
+          <div class="search-result-item" data-action="tool" data-toolid="${tl.id}">
+            <div class="search-item-left">
+              <span class="search-item-icon">${tl.icon}</span>
+              <div>
+                <span class="search-item-title">${tl.title}</span>
+                <span class="search-item-sub">${tl.desc}</span>
+              </div>
+            </div>
+            <span class="search-jump-badge">Open Tool ›</span>
+          </div>
+        `;
+      }
+    }
+
+    if (!html) {
+      html = `<div class="search-no-results" style="padding:12px; font-size:11px; color:#64748B; text-align:center;">No matching symbols, trades, or tools found for "${q}"</div>`;
+    }
+
+    searchDropdown.innerHTML = html;
+    searchDropdown.style.display = 'block';
+
+    // Wire clicks
+    searchDropdown.querySelectorAll('.search-result-item').forEach((item) => {
+      item.addEventListener('click', (e) => {
+        const el = e.currentTarget as HTMLElement;
+        const act = el.dataset.action;
+        if (act === 'symbol' || act === 'trade') {
+          const sym = el.dataset.sym;
+          if (sym) {
+            store.setSelectedSymbol(sym);
+            actions?.onSelectSymbol?.(sym);
+            store.setMainView('FLOOR');
+          }
+        } else if (act === 'tool') {
+          const tid = el.dataset.toolid;
+          const found = TOOLS_LIST.find((t) => t.id === tid);
+          found?.action();
+        }
+        searchDropdown.style.display = 'none';
+        searchInput.value = '';
+        closeDrawerFn?.();
+      });
+    });
+  };
+
+  searchInput.addEventListener('input', (e) => {
+    performSearch((e.target as HTMLInputElement).value);
+  });
+
+  searchInput.addEventListener('focus', (e) => {
+    performSearch((e.target as HTMLInputElement).value || 'RELIANCE');
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!document.getElementById('nav-global-search')?.contains(e.target as Node) &&
+        !document.getElementById('mobile-search-dropdown')?.contains(e.target as Node)) {
+      searchDropdown.style.display = 'none';
+    }
+  });
+
+  // Ctrl+K to focus search input
+  window.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      searchInput.focus();
+      searchInput.select();
+    }
+  });
 }
 
 function updateClockDisplay() {

@@ -59,9 +59,14 @@ export class PriceChartEngine {
   // Chart view & zoom state
   public panOffset: number = 0; // 0 = pinned to live edge
   public visibleBars: number = 90; // default visible candles
+  public pricePanOffset: number = 0; // vertical price pan shift
+  public autoScaleActive: boolean = true;
+  public currentMTFReport: MTFSetupReport | null = null;
   private isDragging: boolean = false;
   private dragStartX: number = 0;
+  private dragStartY: number = 0;
   private dragStartPan: number = 0;
+  private dragStartPricePan: number = 0;
   private touchStartDist: number | null = null;
 
   // Symbol & Timeframe
@@ -111,6 +116,7 @@ export class PriceChartEngine {
     this.canvas.style.height = '100%';
     this.canvas.style.display = 'block';
     this.canvas.style.cursor = 'crosshair';
+    this.canvas.style.touchAction = 'none';
     container.innerHTML = '';
     container.appendChild(this.canvas);
 
@@ -127,6 +133,15 @@ export class PriceChartEngine {
 
     this.attachEventListeners();
     this.loadDrawings(this.currentSymbol);
+  }
+
+  public resetAutoScale(): void {
+    this.pricePanOffset = 0;
+    this.panOffset = 0;
+    this.autoScaleActive = true;
+    const autoBtn = document.getElementById('btn-chart-scale-auto');
+    if (autoBtn) autoBtn.classList.add('active');
+    this.render();
   }
 
   // ==================== STORAGE & PERSISTENCE ====================
@@ -459,10 +474,12 @@ export class PriceChartEngine {
           if (this.onDrawingSelect) this.onDrawingSelect(null);
         }
 
-        // Otherwise initiate canvas panning
+        // Otherwise initiate canvas panning (2D horizontal + vertical)
         this.isDragging = true;
         this.dragStartX = e.clientX;
+        this.dragStartY = e.clientY;
         this.dragStartPan = this.panOffset;
+        this.dragStartPricePan = this.pricePanOffset;
         this.canvas.style.cursor = 'grabbing';
         return;
       }
@@ -656,7 +673,7 @@ export class PriceChartEngine {
         }
       }
 
-      // Canvas Panning
+      // Canvas Panning (Horizontal + Vertical Y-Axis Shift)
       if (this.isDragging) {
         const step = (chartW || 1) / (count || 65);
         const deltaX = e.clientX - this.dragStartX;
@@ -664,6 +681,20 @@ export class PriceChartEngine {
         const total = this.candles.length;
         const maxPan = Math.max(0, total - count);
         this.panOffset = Math.max(0, Math.min(maxPan, this.dragStartPan + deltaBars));
+
+        // Vertical Y-Axis Price Panning
+        const deltaY = e.clientY - this.dragStartY;
+        const g = this.getGeometry();
+        const pricePerPx = (g.priceRange || 1) / (g.chartH || 1);
+        this.pricePanOffset = this.dragStartPricePan + deltaY * pricePerPx;
+        this.autoScaleActive = Math.abs(this.pricePanOffset) < 0.0001;
+
+        const autoBtn = document.getElementById('btn-chart-scale-auto');
+        if (autoBtn) {
+          if (this.autoScaleActive) autoBtn.classList.add('active');
+          else autoBtn.classList.remove('active');
+        }
+
         this.render();
         return;
       }
@@ -733,45 +764,63 @@ export class PriceChartEngine {
       else this.zoomOut();
     }, { passive: false });
 
-    // Touch Support
+    // Touch Support with Chart-Only Pinch & 2D Dragging (touch-action: none)
     this.canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
       if (e.touches.length === 1) {
         this.isDragging = true;
         this.dragStartX = e.touches[0].clientX;
+        this.dragStartY = e.touches[0].clientY;
         this.dragStartPan = this.panOffset;
+        this.dragStartPricePan = this.pricePanOffset;
       } else if (e.touches.length === 2) {
         this.isDragging = false;
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         this.touchStartDist = Math.hypot(dx, dy);
       }
-    }, { passive: true });
+    }, { passive: false });
 
     this.canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
       if (e.touches.length === 1 && this.isDragging) {
-        const { chartW, count } = getBounds();
+        const { chartW, chartH, count, priceRange } = this.getGeometry();
         const step = (chartW || 1) / (count || 65);
         const deltaX = e.touches[0].clientX - this.dragStartX;
         const deltaBars = Math.round(deltaX / step);
         const maxPan = Math.max(0, this.candles.length - count);
         this.panOffset = Math.max(0, Math.min(maxPan, this.dragStartPan + deltaBars));
+
+        // Vertical Y-Axis Touch Panning
+        const deltaY = e.touches[0].clientY - this.dragStartY;
+        const pricePerPx = (priceRange || 1) / (chartH || 1);
+        this.pricePanOffset = this.dragStartPricePan + deltaY * pricePerPx;
+        this.autoScaleActive = Math.abs(this.pricePanOffset) < 0.0001;
+
+        const autoBtn = document.getElementById('btn-chart-scale-auto');
+        if (autoBtn) {
+          if (this.autoScaleActive) autoBtn.classList.add('active');
+          else autoBtn.classList.remove('active');
+        }
+
         this.render();
       } else if (e.touches.length === 2 && this.touchStartDist !== null) {
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         const curDist = Math.hypot(dx, dy);
-        if (Math.abs(curDist - this.touchStartDist) > 20) {
+        if (Math.abs(curDist - this.touchStartDist) > 12) {
           if (curDist > this.touchStartDist) this.zoomIn();
           else this.zoomOut();
           this.touchStartDist = curDist;
         }
       }
-    }, { passive: true });
+    }, { passive: false });
 
-    this.canvas.addEventListener('touchend', () => {
+    this.canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
       this.isDragging = false;
       this.touchStartDist = null;
-    });
+    }, { passive: false });
   }
 
   // ==================== HIT TESTING & GEOMETRY ====================
@@ -803,19 +852,41 @@ export class PriceChartEngine {
     for (const c of visibleCandles) {
       prices.push(c.low, c.high, c.open, c.close);
     }
-    prices.sort((a, b) => a - b);
-    const pLowIdx = Math.floor(prices.length * 0.02);
-    const pHighIdx = Math.min(prices.length - 1, Math.floor(prices.length * 0.98));
-    let minPrice = prices[pLowIdx] ?? prices[0] ?? 100;
-    let maxPrice = prices[pHighIdx] ?? prices[prices.length - 1] ?? 110;
+    // Also include active SL / TP1 boxes from drawings so they are never clipped
+    for (const d of this.drawings) {
+      if (d.type === 'long_position' || d.type === 'short_position') {
+        if (typeof d.tpPrice === 'number' && isFinite(d.tpPrice)) prices.push(d.tpPrice);
+        if (typeof d.slPrice === 'number' && isFinite(d.slPrice)) prices.push(d.slPrice);
+        if (typeof d.entryPrice === 'number' && isFinite(d.entryPrice)) prices.push(d.entryPrice);
+      } else if (d.type === 'horizontal' && d.points[0]) {
+        prices.push(d.points[0].price);
+      }
+    }
+    // Also include active MTF setup SL / TP if present
+    const mtfReport = this.currentMTFReport as any;
+    if (mtfReport?.active_setup || mtfReport?.blueprint) {
+      const s = mtfReport.active_setup || mtfReport.blueprint;
+      if (typeof s.entry === 'number') prices.push(s.entry);
+      if (typeof s.stop_loss === 'number') prices.push(s.stop_loss);
+      if (typeof s.take_profit_1 === 'number') prices.push(s.take_profit_1);
+      if (typeof s.take_profit_2 === 'number') prices.push(s.take_profit_2);
+    }
+
+    let minPrice = Math.min(...prices);
+    let maxPrice = Math.max(...prices);
     if (!isFinite(minPrice) || !isFinite(maxPrice) || minPrice === maxPrice) {
       minPrice = (prices[0] || 100) * 0.99;
       maxPrice = (prices[prices.length - 1] || 110) * 1.01;
     }
     const rawRange = maxPrice - minPrice;
-    const pad = (rawRange > 0 ? rawRange : maxPrice * 0.05) * 0.06;
+    // 14% top and bottom vertical padding so top wicks and bottom Stop-Loss boxes are never cut off
+    const pad = (rawRange > 0 ? rawRange : maxPrice * 0.05) * 0.14;
     minPrice -= pad;
     maxPrice += pad;
+
+    // Apply vertical price shift offset if dragged
+    minPrice += this.pricePanOffset;
+    maxPrice += this.pricePanOffset;
     const priceRange = maxPrice - minPrice || 1;
     const step = chartW / count;
 
@@ -1027,18 +1098,31 @@ export class PriceChartEngine {
 
     if (visibleCandles.length === 0) return;
 
-    // Calculate Y-axis range strictly from visible candles with smooth auto-scaling
+    // Calculate Y-axis range from all visible candles AND active SL / TP1 boxes with 14% padding
     const prices: number[] = [];
     for (const c of visibleCandles) {
       prices.push(c.low, c.high, c.open, c.close);
     }
-    prices.sort((a, b) => a - b);
+    for (const d of this.drawings) {
+      if (d.type === 'long_position' || d.type === 'short_position') {
+        if (typeof d.tpPrice === 'number' && isFinite(d.tpPrice)) prices.push(d.tpPrice);
+        if (typeof d.slPrice === 'number' && isFinite(d.slPrice)) prices.push(d.slPrice);
+        if (typeof d.entryPrice === 'number' && isFinite(d.entryPrice)) prices.push(d.entryPrice);
+      } else if (d.type === 'horizontal' && d.points[0]) {
+        prices.push(d.points[0].price);
+      }
+    }
+    const mtfReport = this.currentMTFReport as any;
+    if (mtfReport?.active_setup || mtfReport?.blueprint) {
+      const s = mtfReport.active_setup || mtfReport.blueprint;
+      if (typeof s.entry === 'number') prices.push(s.entry);
+      if (typeof s.stop_loss === 'number') prices.push(s.stop_loss);
+      if (typeof s.take_profit_1 === 'number') prices.push(s.take_profit_1);
+      if (typeof s.take_profit_2 === 'number') prices.push(s.take_profit_2);
+    }
 
-    const pLowIdx = Math.floor(prices.length * 0.02);
-    const pHighIdx = Math.min(prices.length - 1, Math.floor(prices.length * 0.98));
-
-    let minPrice = prices[pLowIdx] ?? prices[0];
-    let maxPrice = prices[pHighIdx] ?? prices[prices.length - 1];
+    let minPrice = Math.min(...prices);
+    let maxPrice = Math.max(...prices);
 
     if (!isFinite(minPrice) || !isFinite(maxPrice) || minPrice === maxPrice) {
       minPrice = (prices[0] || 100) * 0.99;
@@ -1046,10 +1130,15 @@ export class PriceChartEngine {
     }
 
     const rawRange = maxPrice - minPrice;
-    const pad = (rawRange > 0 ? rawRange : maxPrice * 0.05) * 0.06;
+    // 14% top and bottom vertical padding so top wicks and bottom Stop-Loss boxes are never cut off
+    const pad = (rawRange > 0 ? rawRange : maxPrice * 0.05) * 0.14;
     minPrice -= pad;
     maxPrice += pad;
-    const priceRange = maxPrice - minPrice;
+
+    // Apply vertical price shift offset if dragged
+    minPrice += this.pricePanOffset;
+    maxPrice += this.pricePanOffset;
+    const priceRange = maxPrice - minPrice || 1;
 
     const candleCount = visibleCandles.length;
     const step = chartW / candleCount;
@@ -1064,6 +1153,7 @@ export class PriceChartEngine {
     ctx.fillStyle = '#64748B';
     ctx.font = '10px "JetBrains Mono", monospace';
 
+    const isFx = this.currentSymbol.includes('/') || this.currentSymbol.includes('USD') || ((minPrice + maxPrice) / 2) < 10;
     const gridLines = 5;
     for (let i = 0; i <= gridLines; i++) {
       const y = pTop + (chartH / gridLines) * i;
@@ -1074,8 +1164,8 @@ export class PriceChartEngine {
       ctx.lineTo(pLeft + chartW, y);
       ctx.stroke();
 
-      // Right axis price label
-      const formatted = p >= 1000 ? p.toFixed(1) : p >= 10 ? p.toFixed(2) : p.toFixed(4);
+      // Right axis price label with Forex 5-decimal precision
+      const formatted = isFx ? p.toFixed(5) : p >= 1000 ? p.toFixed(2) : p.toFixed(2);
       ctx.fillText(formatted, pLeft + chartW + 8, y + 3.5);
     }
 
@@ -1355,11 +1445,12 @@ export class PriceChartEngine {
         ctx.setLineDash([]);
 
         // Pinned Right Y-Axis Price Badge
+        const isForex = this.currentSymbol.includes('/') || this.currentSymbol.includes('USD') || hc.close < 10;
         const hoverPrice = maxPrice - ((hy - pTop) / (chartH || 1)) * priceRange;
-        const hoverPriceStr = hoverPrice >= 1000 ? hoverPrice.toFixed(1) : hoverPrice >= 10 ? hoverPrice.toFixed(2) : hoverPrice.toFixed(4);
+        const hoverPriceStr = isForex ? hoverPrice.toFixed(5) : hoverPrice >= 1000 ? hoverPrice.toFixed(2) : hoverPrice.toFixed(2);
         ctx.fillStyle = '#0F172A';
         ctx.strokeStyle = '#2563EB';
-        const pBadgeW = 68;
+        const pBadgeW = isForex ? 74 : 68;
         const pBadgeH = 18;
         const pBadgeX = width - pRight + 4;
         const pBadgeY = hy - pBadgeH / 2;
@@ -1396,11 +1487,12 @@ export class PriceChartEngine {
           ctx.fillText(dateStr, tPillX + tPillW / 2, tPillY + tPillH / 2);
         }
 
-        // Top-Left Live OHLC Bar Readout Pill
+        // Top-Left Live OHLC Bar Readout Pill (Supports 5-decimal precision for EUR/USD and Forex)
         const isUp = hc.close >= hc.open;
         const chg = hc.close - hc.open;
         const chgPct = (chg / (hc.open || 1)) * 100;
-        const ttW = 510;
+        const fmtPrice = (val: number) => isForex ? val.toFixed(5) : val.toFixed(2);
+        const ttW = isForex ? 570 : 490;
         const ttH = 22;
         const ttX = pLeft + 8;
         const ttY = pTop - 22;
@@ -1418,36 +1510,43 @@ export class PriceChartEngine {
         ctx.fillStyle = '#2563EB';
         ctx.fillText(`${this.currentSymbol} • ${this.currentTimeframe}`, ttX + 8, ttY + 11);
 
+        const oX = ttX + 112;
         ctx.font = '10px "JetBrains Mono", monospace';
         ctx.fillStyle = '#64748B';
-        ctx.fillText('O', ttX + 124, ttY + 11);
+        ctx.fillText('O', oX, ttY + 11);
         ctx.fillStyle = isUp ? '#10B981' : '#EF4444';
-        ctx.fillText(hc.open.toFixed(2), ttX + 135, ttY + 11);
+        ctx.fillText(fmtPrice(hc.open), oX + 12, ttY + 11);
 
+        const hX = oX + (isForex ? 74 : 58);
         ctx.fillStyle = '#64748B';
-        ctx.fillText('H', ttX + 185, ttY + 11);
+        ctx.fillText('H', hX, ttY + 11);
         ctx.fillStyle = isUp ? '#10B981' : '#EF4444';
-        ctx.fillText(hc.high.toFixed(2), ttX + 196, ttY + 11);
+        ctx.fillText(fmtPrice(hc.high), hX + 12, ttY + 11);
 
+        const lX = hX + (isForex ? 74 : 58);
         ctx.fillStyle = '#64748B';
-        ctx.fillText('L', ttX + 246, ttY + 11);
+        ctx.fillText('L', lX, ttY + 11);
         ctx.fillStyle = isUp ? '#10B981' : '#EF4444';
-        ctx.fillText(hc.low.toFixed(2), ttX + 257, ttY + 11);
+        ctx.fillText(fmtPrice(hc.low), lX + 12, ttY + 11);
 
+        const cX = lX + (isForex ? 74 : 58);
         ctx.fillStyle = '#64748B';
-        ctx.fillText('C', ttX + 307, ttY + 11);
+        ctx.fillText('C', cX, ttY + 11);
         ctx.fillStyle = isUp ? '#10B981' : '#EF4444';
-        ctx.fillText(hc.close.toFixed(2), ttX + 318, ttY + 11);
+        ctx.fillText(fmtPrice(hc.close), cX + 12, ttY + 11);
 
+        const chgX = cX + (isForex ? 76 : 60);
         ctx.fillStyle = isUp ? '#10B981' : '#EF4444';
         const chgSign = chg >= 0 ? '+' : '';
-        ctx.fillText(`${chgSign}${chg.toFixed(2)} (${chgSign}${chgPct.toFixed(2)}%)`, ttX + 368, ttY + 11);
+        const chgStr = isForex ? chg.toFixed(5) : chg.toFixed(2);
+        ctx.fillText(`${chgSign}${chgStr} (${chgSign}${chgPct.toFixed(2)}%)`, chgX, ttY + 11);
 
+        const volX = chgX + (isForex ? 94 : 82);
         ctx.fillStyle = '#64748B';
-        ctx.fillText('Vol', ttX + 444, ttY + 11);
+        ctx.fillText('Vol', volX, ttY + 11);
         ctx.fillStyle = '#0F172A';
         const volStr = hc.volume ? (hc.volume > 1e6 ? `${(hc.volume / 1e6).toFixed(1)}M` : hc.volume > 1e3 ? `${(hc.volume / 1e3).toFixed(0)}K` : `${hc.volume}`) : '—';
-        ctx.fillText(volStr, ttX + 468, ttY + 11);
+        ctx.fillText(volStr, volX + 22, ttY + 11);
 
         ctx.restore();
       }

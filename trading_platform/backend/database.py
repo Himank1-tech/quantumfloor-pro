@@ -49,8 +49,8 @@ class Database:
             self.engine: Engine = create_engine(
                 self.db_url,
                 pool_pre_ping=True,
-                pool_size=10,
-                max_overflow=20,
+                pool_size=20,
+                max_overflow=30,
                 pool_recycle=300,
                 connect_args=connect_args,
             )
@@ -452,7 +452,17 @@ class Database:
         oanda_enc_sec = encrypt_secret("oanda_account_id_001_882910")
 
         with self.engine.begin() as conn:
-            # Users: Admin Portal (himankbatra2005@gmail.com), Institutional Admin, Trader, and Demo
+            # Strictly purge any legacy dummy seeded accounts so only genuine users exist
+            try:
+                conn.execute(text("DELETE FROM users WHERE user_id IN ('USR-ADMIN-01', 'USR-TRADER-01', 'USR-DEMO-01') OR username IN ('admin', 'trader1', 'trader_demo');"))
+                conn.execute(text("DELETE FROM user_sessions WHERE user_id IN ('USR-ADMIN-01', 'USR-TRADER-01', 'USR-DEMO-01') OR username IN ('admin', 'trader1', 'trader_demo');"))
+                conn.execute(text("DELETE FROM encrypted_keys WHERE user_id IN ('USR-ADMIN-01', 'USR-TRADER-01', 'USR-DEMO-01');"))
+                conn.execute(text("DELETE FROM broker_credentials WHERE user_id IN ('USR-ADMIN-01', 'USR-TRADER-01', 'USR-DEMO-01');"))
+                conn.execute(text("DELETE FROM broker_vault WHERE user_id IN ('USR-ADMIN-01', 'USR-TRADER-01', 'USR-DEMO-01');"))
+            except Exception as e:
+                logger.warning(f"Legacy dummy users cleanup note: {e}")
+
+            # Users: Real Lead Administrator (himankbatra2005@gmail.com)
             users_data = [
                 {
                     "uid": "USR-ADMIN-HB",
@@ -467,49 +477,7 @@ class Database:
                     "count": 14,
                     "last": now,
                     "ip": "103.21.244.1"
-                },
-                {
-                    "uid": "USR-ADMIN-01",
-                    "name": "Institutional Admin",
-                    "un": "admin",
-                    "em": "admin@quantumfloor.institutional",
-                    "pw": admin_pwd,
-                    "role": "ADMIN",
-                    "mode": "LONG_TERM_WEALTH",
-                    "totp": 1,
-                    "created": now,
-                    "count": 32,
-                    "last": now,
-                    "ip": "103.21.244.0"
-                },
-                {
-                    "uid": "USR-TRADER-01",
-                    "name": "Senior Quant Trader",
-                    "un": "trader1",
-                    "em": "trader@quantumfloor.institutional",
-                    "pw": trader_pwd,
-                    "role": "TRADER",
-                    "mode": "AUTONOMOUS_TRADING",
-                    "totp": 0,
-                    "created": now,
-                    "count": 8,
-                    "last": now,
-                    "ip": "49.37.158.42"
-                },
-                {
-                    "uid": "USR-DEMO-01",
-                    "name": "Guest Demo Trader",
-                    "un": "trader_demo",
-                    "em": "demo@quantumfloor.institutional",
-                    "pw": trader_pwd,
-                    "role": "TRADER",
-                    "mode": "AUTONOMOUS_TRADING",
-                    "totp": 0,
-                    "created": now,
-                    "count": 5,
-                    "last": now,
-                    "ip": "157.34.120.91"
-                },
+                }
             ]
             for u in users_data:
                 if self.is_postgres:
@@ -536,11 +504,9 @@ class Database:
                         u
                     )
 
-            # Seed sample initial sessions for admin and trader
+            # Seed authentic session for Lead Administrator
             sessions_seed = [
-                ("SES-ADMIN-01", "USR-ADMIN-HB", "himankbatra", "himankbatra2005@gmail.com", "ADMIN", "103.21.244.1", "QuantumFloor-Terminal-Desktop", now, now),
-                ("SES-ADMIN-02", "USR-ADMIN-01", "admin", "admin@quantumfloor.institutional", "ADMIN", "103.21.244.0", "QuantumFloor-Institutional-Core", now, now),
-                ("SES-TRD-01", "USR-TRADER-01", "trader1", "trader@quantumfloor.institutional", "TRADER", "49.37.158.42", "Mozilla/5.0 (Windows NT 10.0)", now, now),
+                ("SES-ADMIN-01", "USR-ADMIN-HB", "himankbatra", "himankbatra2005@gmail.com", "ADMIN", "103.21.244.1", "QuantumFloor-Terminal-Desktop", now, now)
             ]
             for s in sessions_seed:
                 s_params = {"sid": s[0], "uid": s[1], "un": s[2], "em": s[3], "r": s[4], "ip": s[5], "ua": s[6], "ca": s[7], "ea": s[8]}
@@ -562,11 +528,8 @@ class Database:
                         s_params
                     )
 
-            # Vault keys
-            vault_items = [
-                ("USR-ADMIN-01", "Zerodha Kite Connect", kite_enc_key, kite_enc_sec, mask_secret("kite_live_institutional_key_99482"), mask_secret("kite_secret_hash_2026_alphatrade"), 1, "LIVE", now),
-                ("USR-ADMIN-01", "OANDA v20 Forex", oanda_enc_key, oanda_enc_sec, mask_secret("oanda_v20_live_token_771829471"), mask_secret("oanda_account_id_001_882910"), 1, "PRACTICE", now),
-            ]
+            # Zero dummy vault items: All brokers are NOT CONNECTED (0/5) by default until user connects
+            vault_items = []
             for v in vault_items:
                 v_params = {
                     "uid": v[0], "bname": v[1], "k": v[2], "s": v[3], "mk": v[4], "ms": v[5], "conn": v[6], "env": v[7], "updated": v[8]

@@ -3361,9 +3361,50 @@ body {
     padding-bottom: 2px;
   }
 
+  #btn-chart-tools-toggle {
+    display: inline-flex !important;
+  }
+
+  .tv-superchart-container {
+    max-height: 492px !important;
+    position: relative !important;
+  }
+
+  .tv-drawing-toolbar {
+    display: none !important;
+    position: absolute !important;
+    top: 6px !important;
+    left: 6px !important;
+    z-index: 50 !important;
+    background: #FFFFFF !important;
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.25) !important;
+    max-height: 380px !important;
+    height: auto !important;
+    padding: 6px 4px !important;
+  }
+
+  .tv-drawing-toolbar.mobile-open {
+    display: flex !important;
+  }
+
+  .tv-chart-main-area {
+    width: 100% !important;
+  }
+
   .chart-canvas-wrapper {
-    height: 460px;
-    min-height: 420px;
+    height: 460px !important;
+    min-height: 460px !important;
+    max-height: 460px !important;
+  }
+
+  .superchart-card {
+    margin-bottom: 0 !important;
+  }
+
+  .blotter-tabbed-card {
+    margin-top: 12px !important;
   }
 
   /* Multi-Agent Debate Vertical Stacking */
@@ -3413,6 +3454,7 @@ body {
   flex-direction: row;
   position: relative;
   width: 100%;
+  max-height: 672px;
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
   border-radius: 8px;
@@ -3420,10 +3462,16 @@ body {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
+#btn-chart-tools-toggle {
+  display: none;
+}
+
 .tv-drawing-toolbar {
   width: 44px;
   min-width: 44px;
   max-width: 44px;
+  height: 100%;
+  max-height: 672px;
   background: #F8FAFC;
   border-right: 1px solid #E2E8F0;
   display: flex;
@@ -4039,6 +4087,154 @@ body {
   color: #FFFFFF !important;
   border-color: #475569 !important;
 }
+
+/* ==================== UNIVERSAL GLOBAL TOP SEARCH BAR ==================== */
+.nav-global-search-container {
+  position: relative;
+  min-width: 260px;
+  max-width: 380px;
+  flex: 1;
+  margin: 0 10px;
+}
+
+.nav-search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  padding: 0 10px;
+  height: 34px;
+  transition: all 0.15s ease;
+}
+
+.nav-search-input-wrapper:focus-within {
+  background: #FFFFFF;
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.nav-search-icon {
+  font-size: 13px;
+  color: #64748B;
+  margin-right: 6px;
+}
+
+.global-search-input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  font-size: 12px;
+  color: #0F172A;
+  font-weight: 500;
+  outline: none;
+}
+
+.nav-search-kbd {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 4px;
+  padding: 2px 5px;
+  color: #64748B;
+  white-space: nowrap;
+}
+
+.global-search-dropdown {
+  position: absolute;
+  top: 40px;
+  left: 0;
+  right: 0;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.15);
+  max-height: 420px;
+  overflow-y: auto;
+  z-index: 9999;
+  padding: 6px 0;
+}
+
+.search-category-header {
+  font-size: 9px;
+  font-weight: 800;
+  color: #64748B;
+  letter-spacing: 0.6px;
+  padding: 8px 12px 4px 12px;
+  text-transform: uppercase;
+}
+
+.search-result-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.search-result-item:hover {
+  background: #F1F5F9;
+}
+
+.search-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.search-item-flag {
+  font-size: 14px;
+}
+
+.search-item-icon {
+  font-size: 14px;
+}
+
+.search-item-side {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.search-item-side.buy {
+  background: #EFF6FF;
+  color: #2563EB;
+}
+.search-item-side.sell {
+  background: #FEF2F2;
+  color: #DC2626;
+}
+
+.search-item-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0F172A;
+  display: block;
+}
+
+.search-item-sub {
+  font-size: 10px;
+  color: #64748B;
+  display: block;
+}
+
+.search-jump-badge {
+  font-size: 10px;
+  color: #2563EB;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 1023px) {
+  .nav-global-search-container {
+    display: none; /* Accessible inside mobile drawer */
+  }
+}
+
 
 
 
