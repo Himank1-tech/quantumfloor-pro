@@ -90,7 +90,7 @@ class BacktestEngine:
         """
         Executes complete historical backtest on multi-timeframe candles.
         """
-        candles = await historical_candle_loader.get_candles(req.symbol, timeframe=req.timeframe, limit=120)
+        candles = await historical_candle_loader.get_candles(req.symbol, timeframe=req.timeframe, limit=350)
         n = len(candles)
         capital = req.initial_capital
         equity = capital

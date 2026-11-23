@@ -53,12 +53,13 @@ export function renderNavbar(): string {
         </div>
       </div>
 
-      <!-- Universal Global Search Bar (Desktop & Tablet) -->
+      <!-- Universal Global Search Bar (Desktop & Mobile) -->
       <div class="nav-global-search-container" id="nav-global-search">
         <div class="nav-search-input-wrapper">
           <span class="nav-search-icon">🔍</span>
-          <input type="text" id="global-search-input" class="global-search-input" placeholder="Search symbols, trades, SMC setups, tools, news..." autocomplete="off" />
+          <input type="text" id="global-search-input" class="global-search-input" placeholder="Search symbols, controls, indicators, trades, settings..." autocomplete="off" />
           <kbd class="nav-search-kbd">Ctrl+K</kbd>
+          <button type="button" id="btn-global-search-submit" class="nav-search-submit-btn">🔍 Search</button>
         </div>
         <div class="global-search-dropdown" id="global-search-dropdown" style="display:none;"></div>
       </div>
@@ -151,7 +152,8 @@ export function renderNavbar(): string {
         <div style="padding: 12px 16px 4px 16px;">
           <div class="nav-search-input-wrapper">
             <span class="nav-search-icon">🔍</span>
-            <input type="text" id="mobile-global-search-input" class="global-search-input" placeholder="Search markets, tools, setups..." autocomplete="off" />
+            <input type="text" id="mobile-global-search-input" class="global-search-input" placeholder="Search symbols, controls, indicators, trades, settings..." autocomplete="off" />
+            <button type="button" id="btn-mobile-search-submit" class="nav-search-submit-btn">🔍 Search</button>
           </div>
           <div class="global-search-dropdown" id="mobile-search-dropdown" style="display:none; position:relative; top:6px;"></div>
         </div>
@@ -495,6 +497,21 @@ export function setupNavbarEventListeners(): void {
   updateClockDisplay();
 }
 
+function highlightControl(selector: string, switchView?: MainViewTab, additionalAction?: () => void) {
+  if (switchView) {
+    store.setMainView(switchView);
+  }
+  setTimeout(() => {
+    const el = document.querySelector(selector) as HTMLElement | null;
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('search-focus-pulse');
+      setTimeout(() => el.classList.remove('search-focus-pulse'), 2200);
+    }
+    additionalAction?.();
+  }, switchView ? 120 : 20);
+}
+
 function setupGlobalSearch(
   inputId: string,
   dropdownId: string,
@@ -506,34 +523,69 @@ function setupGlobalSearch(
   if (!searchInput || !searchDropdown) return;
 
   const SYMBOLS_LIST = [
-    { sym: 'RELIANCE', name: 'Reliance Industries Ltd', market: 'NSE / BSE', flag: '🇮🇳' },
-    { sym: 'TCS', name: 'Tata Consultancy Services', market: 'NSE / BSE', flag: '🇮🇳' },
-    { sym: 'HDFCBANK', name: 'HDFC Bank Ltd', market: 'NSE / BSE', flag: '🇮🇳' },
-    { sym: 'ICICIBANK', name: 'ICICI Bank Ltd', market: 'NSE / BSE', flag: '🇮🇳' },
-    { sym: 'INFY', name: 'Infosys Ltd', market: 'NSE / BSE', flag: '🇮🇳' },
-    { sym: 'SBIN', name: 'State Bank of India', market: 'NSE / BSE', flag: '🇮🇳' },
-    { sym: 'BHARTIARTL', name: 'Bharti Airtel Ltd', market: 'NSE / BSE', flag: '🇮🇳' },
-    { sym: 'NIFTY 50', name: 'Nifty 50 Index', market: 'NSE Index', flag: '🇮🇳' },
-    { sym: 'BANKNIFTY', name: 'Bank Nifty Index', market: 'NSE Index', flag: '🇮🇳' },
-    { sym: 'EUR/USD', name: 'Euro / US Dollar', market: 'Global Forex', flag: '🌐' },
-    { sym: 'GBP/USD', name: 'British Pound / US Dollar', market: 'Global Forex', flag: '🌐' },
-    { sym: 'USD/INR', name: 'US Dollar / Indian Rupee', market: 'Global Forex', flag: '🌐' },
-    { sym: 'USD/JPY', name: 'US Dollar / Japanese Yen', market: 'Global Forex', flag: '🌐' },
-    { sym: 'XAU/USD', name: 'Gold Spot / US Dollar', market: 'Commodity', flag: '🪙' },
+    { sym: 'RELIANCE', name: 'Reliance Industries Ltd', market: 'NSE / BSE', flag: '🇮🇳', isNSE: true },
+    { sym: 'TCS', name: 'Tata Consultancy Services', market: 'NSE / BSE', flag: '🇮🇳', isNSE: true },
+    { sym: 'HDFCBANK', name: 'HDFC Bank Ltd', market: 'NSE / BSE', flag: '🇮🇳', isNSE: true },
+    { sym: 'ICICIBANK', name: 'ICICI Bank Ltd', market: 'NSE / BSE', flag: '🇮🇳', isNSE: true },
+    { sym: 'INFY', name: 'Infosys Ltd', market: 'NSE / BSE', flag: '🇮🇳', isNSE: true },
+    { sym: 'SBIN', name: 'State Bank of India', market: 'NSE / BSE', flag: '🇮🇳', isNSE: true },
+    { sym: 'BHARTIARTL', name: 'Bharti Airtel Ltd', market: 'NSE / BSE', flag: '🇮🇳', isNSE: true },
+    { sym: 'NIFTY 50', name: 'Nifty 50 Benchmark Index', market: 'NSE Index', flag: '🇮🇳', isNSE: true },
+    { sym: 'BANKNIFTY', name: 'Bank Nifty Banking Index', market: 'NSE Index', flag: '🇮🇳', isNSE: true },
+    { sym: 'SENSEX', name: 'BSE Sensex Benchmark Index', market: 'BSE Index', flag: '🇮🇳', isNSE: true },
+    { sym: 'EUR/USD', name: 'Euro / US Dollar', market: 'Global Forex', flag: '🌐', isNSE: false },
+    { sym: 'GBP/USD', name: 'British Pound / US Dollar', market: 'Global Forex', flag: '🌐', isNSE: false },
+    { sym: 'USD/INR', name: 'US Dollar / Indian Rupee', market: 'Global Forex', flag: '🌐', isNSE: false },
+    { sym: 'USD/JPY', name: 'US Dollar / Japanese Yen', market: 'Global Forex', flag: '🌐', isNSE: false },
+    { sym: 'XAU/USD', name: 'Gold Spot / US Dollar', market: 'Precious Metals', flag: '🪙', isNSE: false },
   ];
 
-  const TOOLS_LIST = [
-    { id: 'tool-backtest', title: 'Backtest Lab', desc: 'Strategy simulation & Bar Replay', icon: '🔬', action: () => store.setMainView('BACKTEST') },
-    { id: 'tool-ipo', title: 'IPO Hub & Wealth', desc: 'Live Mainboard & SME IPOs, SIP Baskets', icon: '📰', action: () => store.setMainView('IPO') },
-    { id: 'tool-news', title: 'Economic News', desc: 'Real-time Macro Events & Sessions', icon: '📅', action: () => actions?.onOpenNews?.() },
-    { id: 'tool-calc', title: 'Pip & Lot Risk Calculator', desc: 'Institutional position sizing', icon: '📐', action: () => actions?.onOpenCalculator?.() },
-    { id: 'tool-copilot', title: 'AI Co-Pilot Assistant', desc: 'Institutional SMC trade rationale', icon: '✨', action: () => actions?.onOpenCopilot?.() },
-    { id: 'tool-fvg', title: '90% FVG (Fair Value Gap)', desc: 'Institutional order imbalance zones', icon: '⚡', action: () => { store.setMainView('FLOOR'); } },
-    { id: 'tool-ob', title: 'Order Blocks (OB)', desc: 'High-probability smart money footprints', icon: '🧱', action: () => { store.setMainView('FLOOR'); } },
-    { id: 'tool-liq', title: 'Internal & External Liquidity', desc: 'Buy/Sell-side liquidity sweep pools', icon: '💧', action: () => { store.setMainView('FLOOR'); } },
-    { id: 'tool-sr', title: 'Support & Resistance (BOS/CHoCH)', desc: 'Market structure break & change of character', icon: '📊', action: () => { store.setMainView('FLOOR'); } },
-    { id: 'tool-fib', title: 'OTE Fibonacci Retracement', desc: '0.618 - 0.786 Optimal Trade Entry', icon: '≋', action: () => { store.setMainView('FLOOR'); } },
-    { id: 'tool-vault', title: 'Multi-Broker Vault & Security', desc: 'AES-128 Fernet broker encryption', icon: '🔐', action: () => store.setMainView('SECURITY') },
+  const CHART_CONTROLS = [
+    { id: 'ctrl-trendline', title: 'Trend Line', desc: 'Draw angled trend line on Superchart (Alt+T)', icon: '╱', action: () => { highlightControl('.tv-tool-btn[data-tool="trendline"]', 'FLOOR', () => { (document.querySelector('.tv-tool-btn[data-tool="trendline"]') as HTMLElement)?.click(); }); } },
+    { id: 'ctrl-horizontal', title: 'Horizontal Line', desc: 'Horizontal support & resistance level (Alt+H)', icon: '―', action: () => { highlightControl('.tv-tool-btn[data-tool="horizontal"]', 'FLOOR', () => { (document.querySelector('.tv-tool-btn[data-tool="horizontal"]') as HTMLElement)?.click(); }); } },
+    { id: 'ctrl-fib', title: 'Fib Retracement / OTE', desc: '0.618 - 0.786 Optimal Trade Entry levels (Alt+F)', icon: '≋', action: () => { highlightControl('.tv-tool-btn[data-tool="fib"]', 'FLOOR', () => { (document.querySelector('.tv-tool-btn[data-tool="fib"]') as HTMLElement)?.click(); }); } },
+    { id: 'ctrl-long-pos', title: 'Long Position R:R Box', desc: 'Interactive Long Risk-to-Reward profit/loss box', icon: '📈', action: () => { highlightControl('.tv-tool-btn[data-tool="long_position"]', 'FLOOR', () => { (document.querySelector('.tv-tool-btn[data-tool="long_position"]') as HTMLElement)?.click(); }); } },
+    { id: 'ctrl-short-pos', title: 'Short Position R:R Box', desc: 'Interactive Short Risk-to-Reward profit/loss box', icon: '📉', action: () => { highlightControl('.tv-tool-btn[data-tool="short_position"]', 'FLOOR', () => { (document.querySelector('.tv-tool-btn[data-tool="short_position"]') as HTMLElement)?.click(); }); } },
+    { id: 'ctrl-channel', title: 'Parallel Channel', desc: 'Draw parallel channel trend corridors', icon: '⫽', action: () => { highlightControl('.tv-tool-btn[data-tool="channel"]', 'FLOOR', () => { (document.querySelector('.tv-tool-btn[data-tool="channel"]') as HTMLElement)?.click(); }); } },
+    { id: 'ctrl-brush', title: 'Freehand Brush', desc: 'Freeform drawings and markup on candlesticks', icon: '✎', action: () => { highlightControl('.tv-tool-btn[data-tool="brush"]', 'FLOOR', () => { (document.querySelector('.tv-tool-btn[data-tool="brush"]') as HTMLElement)?.click(); }); } },
+    { id: 'ctrl-text', title: 'Text Annotation', desc: 'Institutional chart text notes & callouts (Alt+A)', icon: 'T', action: () => { highlightControl('.tv-tool-btn[data-tool="text"]', 'FLOOR', () => { (document.querySelector('.tv-tool-btn[data-tool="text"]') as HTMLElement)?.click(); }); } },
+    { id: 'ctrl-zoom-in', title: 'Zoom In (+)', desc: 'Expand candlestick viewport zoom', icon: '➕', action: () => { highlightControl('#btn-chart-zoom-in', 'FLOOR', () => { document.getElementById('btn-chart-zoom-in')?.click(); }); } },
+    { id: 'ctrl-zoom-out', title: 'Zoom Out (-)', desc: 'Contract candlestick viewport zoom', icon: '➖', action: () => { highlightControl('#btn-chart-zoom-out', 'FLOOR', () => { document.getElementById('btn-chart-zoom-out')?.click(); }); } },
+    { id: 'ctrl-autofit', title: 'Auto Fit Y-Axis', desc: 'Auto-rescale price axis to visible high/low', icon: '↺', action: () => { highlightControl('#btn-chart-scale-auto', 'FLOOR', () => { document.getElementById('btn-chart-scale-auto')?.click(); }); } },
+    { id: 'ctrl-maximize', title: 'Maximize Fullscreen', desc: 'Expand Superchart to full-screen viewport', icon: '⛶', action: () => { highlightControl('#btn-chart-maximize', 'FLOOR', () => { document.getElementById('btn-chart-maximize')?.click(); }); } },
+    { id: 'ctrl-replay', title: 'Bar Replay', desc: 'Launch interactive candlestick replay player', icon: '⏮', action: () => { highlightControl('#btn-chart-replay', 'FLOOR', () => { document.getElementById('btn-chart-replay')?.click(); }); } },
+    { id: 'ctrl-timeframes', title: '1M–1D Timeframes', desc: '1M, 3M, 5M, 15M, 30M, 1H, 2H, 4H, 1D chips', icon: '⏱', action: () => { highlightControl('#timeframe-selector', 'FLOOR'); } },
+    { id: 'ctrl-ranges', title: '1D–ALL Range', desc: 'Multi-month & multi-year historical range presets', icon: '📅', action: () => { highlightControl('.chart-date-presets-bar', 'FLOOR'); } },
+  ];
+
+  const SMC_INDICATORS = [
+    { id: 'smc-fvg', title: '90% Fair Value Gap (FVG)', desc: 'Institutional order imbalance zones with 90%+ fill', icon: '⚡', action: () => { highlightControl('#btn-chart-indicators', 'FLOOR', () => { (document.getElementById('btn-chart-indicators') as HTMLElement)?.click(); setTimeout(() => highlightControl('#ind-smc-obs'), 150); }); } },
+    { id: 'smc-ob', title: 'Order Blocks (OB)', desc: 'Institutional mitigation & footprint order blocks', icon: '🧱', action: () => { highlightControl('#btn-chart-indicators', 'FLOOR', () => { (document.getElementById('btn-chart-indicators') as HTMLElement)?.click(); setTimeout(() => highlightControl('#ind-smc-obs'), 150); }); } },
+    { id: 'smc-liq', title: 'Internal & External Liquidity', desc: 'Buy-Side & Sell-Side liquidity sweep pools', icon: '💧', action: () => { highlightControl('#btn-chart-indicators', 'FLOOR', () => { (document.getElementById('btn-chart-indicators') as HTMLElement)?.click(); setTimeout(() => highlightControl('#ind-smc-liq'), 150); }); } },
+    { id: 'smc-sr', title: 'Support & Resistance (S1-S3 / R1-R3)', desc: 'Dynamic institutional pivot support & resistance', icon: '📊', action: () => { highlightControl('#btn-chart-indicators', 'FLOOR', () => { (document.getElementById('btn-chart-indicators') as HTMLElement)?.click(); setTimeout(() => highlightControl('#ind-smc-sr'), 150); }); } },
+    { id: 'smc-bos', title: 'BOS / CHoCH Market Structure', desc: 'Break of Structure & Change of Character trend', icon: '📐', action: () => { highlightControl('#btn-chart-indicators', 'FLOOR', () => { (document.getElementById('btn-chart-indicators') as HTMLElement)?.click(); setTimeout(() => highlightControl('#ind-smc-struct'), 150); }); } },
+    { id: 'smc-ema', title: 'EMA 20/50/200', desc: 'Short, medium & long-term dynamic trend baselines', icon: '📈', action: () => { highlightControl('#btn-chart-indicators', 'FLOOR', () => { (document.getElementById('btn-chart-indicators') as HTMLElement)?.click(); setTimeout(() => highlightControl('#ind-ema20'), 150); }); } },
+    { id: 'smc-vwap', title: 'VWAP', desc: 'Volume-Weighted Average Price institutional benchmark', icon: '≋', action: () => { highlightControl('#btn-chart-indicators', 'FLOOR', () => { (document.getElementById('btn-chart-indicators') as HTMLElement)?.click(); setTimeout(() => highlightControl('#ind-vwap'), 150); }); } },
+    { id: 'smc-bb', title: 'Bollinger Bands', desc: '20-period 2-sigma statistical volatility envelopes', icon: '🎚', action: () => { highlightControl('#btn-chart-indicators', 'FLOOR', () => { (document.getElementById('btn-chart-indicators') as HTMLElement)?.click(); setTimeout(() => highlightControl('#ind-bollinger'), 150); }); } },
+    { id: 'smc-vol', title: 'Volume Histogram', desc: 'Volume expansion & institutional buying/selling delta', icon: '📊', action: () => { highlightControl('#price-chart-container', 'FLOOR'); } },
+    { id: 'risk-calc', title: 'Pip / Lot Size Calculator', desc: 'Institutional position sizing & risk-containment math', icon: '📐', action: () => { actions?.onOpenCalculator(); } },
+    { id: 'risk-gov', title: 'Risk Governor / Tilt Guard', desc: 'Live circuit breaker state & drawdown protection', icon: '🛡️', action: () => { highlightControl('.kpi-card-governor', 'FLOOR'); } },
+    { id: 'risk-tpsl', title: 'TP & SL Levels', desc: 'Priority Multi-Timeframe Entry, SL & TP1-TP3 targets', icon: '🎯', action: () => { highlightControl('#mtf-blueprint-banner', 'FLOOR'); } },
+  ];
+
+  const APP_CONTROLS = [
+    { id: 'app-backtest', title: 'Backtest Lab', desc: 'Quantitative Strategy Studio & Replay Simulation', icon: '🔬', action: () => { store.setMainView('BACKTEST'); } },
+    { id: 'app-run-bt', title: 'Run Full Backtest', desc: 'Execute 350+ candlestick historical backtest', icon: '🚀', action: () => { highlightControl('#btn-run-strategy', 'BACKTEST', () => { (document.getElementById('btn-run-strategy') as HTMLElement)?.click(); }); } },
+    { id: 'app-ipo', title: 'IPO & Wealth Hub', desc: 'Mainboard & SME IPO GMP Intelligence & SIP Baskets', icon: '📰', action: () => { store.setMainView('IPO'); } },
+    { id: 'app-news', title: 'Economic News', desc: 'Live Macro Calendar, Central Bank Events & Session Clocks', icon: '📅', action: () => { if (actions?.onOpenNews) actions.onOpenNews(); else store.setMainView('NEWS'); } },
+    { id: 'app-advisory', title: 'Advisory', desc: 'Institutional Quantitative Trade Advisory & Signal Engine', icon: '🎯', action: () => { store.setMainView('ADVISORY'); } },
+    { id: 'app-copilot', title: 'AI Co-Pilot', desc: 'Interactive Institutional SMC Trading AI Assistant', icon: '✨', action: () => { actions?.onOpenCopilot(); } },
+    { id: 'app-blotter', title: 'Trade Blotter', desc: 'Active Positions, Order History & Live Blotter Table', icon: '📋', action: () => { highlightControl('.blotter-tabbed-card', 'FLOOR'); } },
+    { id: 'app-export-csv', title: 'Export CSV', desc: 'Direct Trade Blotter & Execution Report CSV Download', icon: '📥', action: () => { highlightControl('#btn-export-blotter-s3', 'FLOOR', () => { document.getElementById('btn-export-blotter-s3')?.click(); }); } },
+    { id: 'app-mode-toggle', title: 'Paper Sim vs Live Broker', desc: 'Toggle Risk-Governed Paper Simulation vs Real Broker Routing', icon: '⚡', action: () => { highlightControl('.ticket-execution-mode-toggle', 'FLOOR'); } },
+    { id: 'app-broker-vault', title: 'Broker Vault', desc: 'Multi-Broker AES-128 Fernet Credential Vault (Zerodha, Groww, Angel One, OANDA, MT4/MT5)', icon: '🔐', action: () => { highlightControl('.broker-vault-section', 'SECURITY'); } },
+    { id: 'app-admin-users', title: 'Admin User Monitor', desc: 'System Administrator Registered Users & Token Telemetry', icon: '👥', action: () => { highlightControl('#admin-user-monitor', 'SECURITY'); } },
+    { id: 'app-sre-console', title: 'SRE Incident & Rollback Console', desc: 'High-Scale SRE Incident Severity & Fast Rollback Console', icon: '🛠️', action: () => { highlightControl('.admin-sre-section', 'SECURITY'); } },
   ];
 
   const performSearch = (q: string) => {
@@ -548,21 +600,29 @@ function setupGlobalSearch(
       (s) => s.sym.toLowerCase().includes(query) || s.name.toLowerCase().includes(query)
     );
 
-    const activeTrades = (store.trades || []).filter(
-      (t) => t.symbol.toLowerCase().includes(query) || (t.order_id && t.order_id.toLowerCase().includes(query)) || t.side.toLowerCase().includes(query)
+    const matchedChart = CHART_CONTROLS.filter(
+      (c) => c.title.toLowerCase().includes(query) || c.desc.toLowerCase().includes(query)
     );
 
-    const matchedTools = TOOLS_LIST.filter(
-      (t) => t.title.toLowerCase().includes(query) || t.desc.toLowerCase().includes(query)
+    const matchedSMC = SMC_INDICATORS.filter(
+      (m) => m.title.toLowerCase().includes(query) || m.desc.toLowerCase().includes(query)
+    );
+
+    const matchedApp = APP_CONTROLS.filter(
+      (a) => a.title.toLowerCase().includes(query) || a.desc.toLowerCase().includes(query)
+    );
+
+    const activeTrades = (store.trades || []).filter(
+      (t) => t.symbol.toLowerCase().includes(query) || (t.order_id && t.order_id.toLowerCase().includes(query)) || t.side.toLowerCase().includes(query)
     );
 
     let html = '';
 
     if (matchedSymbols.length > 0) {
-      html += `<div class="search-category-header">MARKETS &amp; SYMBOLS</div>`;
+      html += `<div class="search-category-header">MARKETS &amp; TRADING SYMBOLS</div>`;
       for (const s of matchedSymbols.slice(0, 5)) {
         html += `
-          <div class="search-result-item" data-action="symbol" data-sym="${s.sym}">
+          <div class="search-result-item" data-action="symbol" data-sym="${s.sym}" data-market="${s.isNSE ? 'NSE' : 'FOREX'}">
             <div class="search-item-left">
               <span class="search-item-flag">${s.flag}</span>
               <div>
@@ -571,6 +631,60 @@ function setupGlobalSearch(
               </div>
             </div>
             <span class="search-jump-badge">Jump to Chart ›</span>
+          </div>
+        `;
+      }
+    }
+
+    if (matchedChart.length > 0) {
+      html += `<div class="search-category-header">CHART &amp; DRAWING CONTROLS</div>`;
+      for (const c of matchedChart.slice(0, 4)) {
+        html += `
+          <div class="search-result-item" data-action="chart-ctrl" data-id="${c.id}">
+            <div class="search-item-left">
+              <span class="search-item-icon">${c.icon}</span>
+              <div>
+                <span class="search-item-title">${c.title}</span>
+                <span class="search-item-sub">${c.desc}</span>
+              </div>
+            </div>
+            <span class="search-jump-badge">Select Tool ›</span>
+          </div>
+        `;
+      }
+    }
+
+    if (matchedSMC.length > 0) {
+      html += `<div class="search-category-header">SMC, INDICATORS &amp; RISK CONTROLS</div>`;
+      for (const m of matchedSMC.slice(0, 4)) {
+        html += `
+          <div class="search-result-item" data-action="smc-ctrl" data-id="${m.id}">
+            <div class="search-item-left">
+              <span class="search-item-icon">${m.icon}</span>
+              <div>
+                <span class="search-item-title">${m.title}</span>
+                <span class="search-item-sub">${m.desc}</span>
+              </div>
+            </div>
+            <span class="search-jump-badge">Configure ›</span>
+          </div>
+        `;
+      }
+    }
+
+    if (matchedApp.length > 0) {
+      html += `<div class="search-category-header">APP MODULES, ORDERS &amp; ADMIN CONTROLS</div>`;
+      for (const a of matchedApp.slice(0, 4)) {
+        html += `
+          <div class="search-result-item" data-action="app-ctrl" data-id="${a.id}">
+            <div class="search-item-left">
+              <span class="search-item-icon">${a.icon}</span>
+              <div>
+                <span class="search-item-title">${a.title}</span>
+                <span class="search-item-sub">${a.desc}</span>
+              </div>
+            </div>
+            <span class="search-jump-badge">Open Module ›</span>
           </div>
         `;
       }
@@ -594,47 +708,48 @@ function setupGlobalSearch(
       }
     }
 
-    if (matchedTools.length > 0) {
-      html += `<div class="search-category-header">PLATFORM TOOLS &amp; FEATURES</div>`;
-      for (const tl of matchedTools.slice(0, 4)) {
-        html += `
-          <div class="search-result-item" data-action="tool" data-toolid="${tl.id}">
-            <div class="search-item-left">
-              <span class="search-item-icon">${tl.icon}</span>
-              <div>
-                <span class="search-item-title">${tl.title}</span>
-                <span class="search-item-sub">${tl.desc}</span>
-              </div>
-            </div>
-            <span class="search-jump-badge">Open Tool ›</span>
-          </div>
-        `;
-      }
-    }
-
     if (!html) {
-      html = `<div class="search-no-results" style="padding:12px; font-size:11px; color:#64748B; text-align:center;">No matching symbols, trades, or tools found for "${q}"</div>`;
+      html = `<div class="search-no-results" style="padding:12px; font-size:11px; color:#64748B; text-align:center;">No matching symbols, controls, indicators, or settings found for "${q}"</div>`;
     }
 
     searchDropdown.innerHTML = html;
     searchDropdown.style.display = 'block';
 
-    // Wire clicks
+    // Wire clicks on items
     searchDropdown.querySelectorAll('.search-result-item').forEach((item) => {
       item.addEventListener('click', (e) => {
         const el = e.currentTarget as HTMLElement;
         const act = el.dataset.action;
-        if (act === 'symbol' || act === 'trade') {
+        if (act === 'symbol') {
+          const sym = el.dataset.sym;
+          const isNSE = el.dataset.market === 'NSE';
+          if (sym) {
+            store.setActiveTab(isNSE ? 'INDIAN_EQUITY' : 'FOREX');
+            store.setSelectedSymbol(sym);
+            actions?.onSelectSymbol?.(sym);
+            store.setMainView('FLOOR');
+            highlightControl('#price-chart-container', 'FLOOR');
+          }
+        } else if (act === 'trade') {
           const sym = el.dataset.sym;
           if (sym) {
             store.setSelectedSymbol(sym);
             actions?.onSelectSymbol?.(sym);
             store.setMainView('FLOOR');
+            highlightControl('.blotter-tabbed-card', 'FLOOR');
           }
-        } else if (act === 'tool') {
-          const tid = el.dataset.toolid;
-          const found = TOOLS_LIST.find((t) => t.id === tid);
-          found?.action();
+        } else if (act === 'chart-ctrl') {
+          const id = el.dataset.id;
+          const target = CHART_CONTROLS.find((c) => c.id === id);
+          target?.action();
+        } else if (act === 'smc-ctrl') {
+          const id = el.dataset.id;
+          const target = SMC_INDICATORS.find((m) => m.id === id);
+          target?.action();
+        } else if (act === 'app-ctrl') {
+          const id = el.dataset.id;
+          const target = APP_CONTROLS.find((a) => a.id === id);
+          target?.action();
         }
         searchDropdown.style.display = 'none';
         searchInput.value = '';
@@ -651,6 +766,14 @@ function setupGlobalSearch(
     performSearch((e.target as HTMLInputElement).value || 'RELIANCE');
   });
 
+  // Wire explicit 🔍 Search button
+  const submitBtn = document.getElementById(inputId === 'global-search-input' ? 'btn-global-search-submit' : 'btn-mobile-search-submit');
+  submitBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    performSearch(searchInput.value || 'RELIANCE');
+    searchInput.focus();
+  });
+
   document.addEventListener('click', (e) => {
     if (!document.getElementById('nav-global-search')?.contains(e.target as Node) &&
         !document.getElementById('mobile-search-dropdown')?.contains(e.target as Node)) {
@@ -658,12 +781,18 @@ function setupGlobalSearch(
     }
   });
 
-  // Ctrl+K to focus search input
+  // Shortcuts: Ctrl+K / Cmd+K and '/' (when not typing in an input)
   window.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
       e.preventDefault();
       searchInput.focus();
       searchInput.select();
+      performSearch(searchInput.value || 'RELIANCE');
+    } else if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      searchInput.focus();
+      searchInput.select();
+      performSearch(searchInput.value || 'RELIANCE');
     }
   });
 }
