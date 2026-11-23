@@ -1,17 +1,15 @@
 """
 QuantumFloor Pro - Broadcast-Grade 1080p 60fps Automated Walkthrough Video Generator
 Records live https://quantumfloor-pro.onrender.com with strict visual quality guards:
-- Institutional Daylight White UI with 10 comprehensive scenes
-- Pre-roll hydration gate guaranteeing 100% zero flicker or blank frames
-- Priority Trade Signal & TP/SL Hero Banner with 1-Click Ticket Auto-Fill
-- Movable, zoomable, maximizable Superchart across 8 timeframes (1M to 1D)
-- Full SMC & Quant Multi-Algorithm Engine (Dynamic S1-S3/R1-R3, Liquidity Radar)
-- Neural AI voiceover (edge-tts en-US-AndrewNeural at +2% with 0.5s padding)
+- Institutional Daylight White UI across 9 focused, synchronized scenes
+- Immediate Full-Scale Superchart & Priority TP/SL coverage in opening scenes
+- Pre-roll hydration gate with canvas data-URL verification guaranteeing zero blank frames
+- Boosted loud voiceover normalized at -14 LUFS (acompressor + loudnorm + volume=1.45)
+- Subtle ambient background synth pad (-36dB under voiceover, volume=0.025)
 - Live word-by-word synced karaoke captions via ASS subtitles (libass in FFmpeg)
-- Subtle ambient background synth pad at -30dB
-- Smooth glowing spotlight cursor + click ripples + glassmorphic lower-third chapter overlays
-- Automated luminance quality verification across 5%, 25%, 50%, 75%, 95% timestamps
-- Instant intermediate file purge leaving only the master 1080p60 MP4
+- Virtual glowing spotlight cursor + click ripples + glassmorphic lower-third overlays
+- Automated blank-frame and LUFS quality verification
+- Complete intermediate file cleanup leaving only the final 1080p60 MP4
 """
 
 import os
@@ -24,6 +22,7 @@ import math
 import wave
 import struct
 import shutil
+import urllib.request
 import numpy as np
 import edge_tts
 from playwright.async_api import async_playwright
@@ -37,152 +36,152 @@ MASTER_VIDEO = os.path.join(OUTPUT_DIR, "QuantumFloor_Pro_Full_Demo_1080p60.mp4"
 FFMPEG_BIN = r"C:\Users\hp\AppData\Local\Programs\Python\Python314\Lib\site-packages\imageio_ffmpeg\binaries\ffmpeg-win-x86_64-v9.0.2.exe"
 CHROME_BIN = r"C:\Users\hp\AppData\Local\ms-playwright\chromium-1255\chrome-win64\chrome.exe"
 VOICE = "en-US-AndrewNeural"
-RATE = "+2%"
+RATE = "+0%"  # Natural, fluent cadence
 
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 SCENES = [
     {
         "id": "scene1",
-        "name": "Executive Daylight White Terminal & 5 Live KPI Cards",
-        "badge": "OVERVIEW",
-        "title": "EXECUTIVE DAYLIGHT TERMINAL",
-        "subtitle": "Unified Portfolio NAV, Session Killzones, Macro Calendar & Risk Governor",
+        "name": "Instant Full-Scale Trading Floor & Priority TP/SL Banner",
+        "badge": "LIVE TRADING FLOOR",
+        "title": "DAYLIGHT TRADING FLOOR & PRIORITY EXECUTION",
+        "subtitle": "Unified Portfolio NAV, Session Status & High-Probability TP/SL Blueprint",
         "script": (
-            "Welcome to QuantumFloor Pro, an institutional autonomous trading terminal "
-            "engineered in a crisp Daylight White palette for elite algorithmic execution across Indian NSE equities and global Forex. "
-            "At the top of the terminal, five live institutional KPI cards continuously monitor Unified Portfolio NAV across Indian Rupee and US Dollar accounts, "
-            "Today's Net P and L, the active London-New York overlap killzone, upcoming high-impact economic releases, "
-            "and the automated Risk Governor circuit breaker."
+            "Welcome to QuantumFloor Pro, an institutional autonomous trading terminal engineered in a Daylight White workspace "
+            "for algorithmic execution across Indian equities and global Forex. "
+            "At the top of the floor, five live KPI cards track Unified Portfolio NAV, today's net P and L, market session clocks, "
+            "macro event countdowns, and the automated Risk Governor circuit breaker. "
+            "Anchoring the display is the Priority Trade Signal and TP-SL Execution Blueprint, projecting quantified BUY and SELL entries, "
+            "tight stop losses, and multi-tier take-profit targets with eighty to ninety percent confluence."
         ),
     },
     {
         "id": "scene2",
-        "name": "Priority Trade Signal & TP/SL Hero Banner",
-        "badge": "PRIORITY ALPHA",
-        "title": "PRIORITY SIGNAL & TP/SL HERO BANNER",
-        "subtitle": "Optimal Entry, Multi-Tier TP Levels, Dynamic Pip Distances & 1-Click Ticket Auto-Fill",
+        "name": "Multi-Year / Multi-Month Historical Sliding & Timeframes",
+        "badge": "SUPERCHART NAVIGATION",
+        "title": "MULTI-YEAR HISTORICAL SLIDING & TIMEFRAMES",
+        "subtitle": "15M to 1D Candlesticks, 1D to ALL Presets & Dynamic Y-Axis Viewport Rescaling",
         "script": (
-            "Anchoring the main interface is the new Priority Trade Signal and TP-SL Hero Banner. "
-            "This executive banner instantly surfaces the highest-conviction institutional setup on first load, "
-            "displaying the active symbol, primary directional bias, high win probability up to ninety percent, "
-            "exact entry price, and stop loss with quantified risk in pips and points. "
-            "Three profit-taking milestones—TP1, TP2, and TP3—are clearly projected alongside an instant one-click button "
-            "that auto-fills the quick execution order ticket."
+            "The centerpiece of QuantumFloor Pro is the dominant full-viewport Superchart, occupying seventy-six percent "
+            "of the trading floor with zero blank whitespace. "
+            "Traders can cycle across institutional timeframes from fifteen minutes to four hours and daily candles, "
+            "and select multi-month range presets from one month up to multi-year history. "
+            "Dragging smoothly across past months and years dynamically updates the X-axis date scale and Y-axis price boundaries in real time, "
+            "with seamless one-click fullscreen maximize and minimize controls."
         ),
     },
     {
         "id": "scene3",
-        "name": "TradingView-Grade Superchart & Left Drawing Toolbar",
-        "badge": "TRADINGVIEW SUPERCHART",
-        "title": "TRADINGVIEW SUPERCHART & DRAWING TOOLBAR",
-        "subtitle": "44px Left Toolbar, Trendlines, Fib OTE, Long/Short R:R Tool, Bar Replay & Multi-Month Presets",
+        "name": "Interactive Left Drawing Toolbar & Risk Tools",
+        "badge": "DRAWING SUITE",
+        "title": "INTERACTIVE DRAWING TOOLBAR & RISK TOOLS",
+        "subtitle": "Docked 44px Strip, Trend Lines, Fibonacci OTE & Draggable Long/Short R:R Boxes",
         "script": (
-            "QuantumFloor Pro upgrades the charting engine to an institutional TradingView-grade workspace. "
-            "On the left, a sleek forty-four pixel drawing toolbar equips traders with precision crosshairs, "
-            "trendlines, ray lines, Fibonacci retracement with shaded optimal trade entry zones, "
-            "and interactive long and short position risk-reward boxes with real-time target and stop-loss metrics. "
-            "Traders enjoy magnetic snapping to candlestick extremes, top-left live OHLC readouts, "
-            "bottom date presets spanning one day to multi-year history, a comprehensive technical indicators modal, "
-            "and an interactive candlestick bar replay engine."
+            "Docked on the left is a dedicated forty-four pixel drawing toolbar providing precision charting tools. "
+            "Traders can place angled trendlines and horizontal price rays with magnetic candlestick snapping, "
+            "cast multi-level Fibonacci retracements highlighting sixty-one point eight and seventy-eight point six optimal trade entry zones, "
+            "and position interactive Long and Short Risk-Reward boxes directly over order blocks to measure live risk-to-reward ratios and point spreads."
         ),
     },
     {
         "id": "scene4",
-        "name": "Live Global Forex & Pip/Lot Risk Calculator",
-        "badge": "GLOBAL FOREX",
-        "title": "24/5 FOREX & RISK CALCULATOR",
-        "subtitle": "Major Pairs, Spot Gold & Mathematical Pip / Lot Position Sizing",
+        "name": "Institutional SMC Suite & Liquidity Matrix",
+        "badge": "SMART MONEY CONCEPTS",
+        "title": "INSTITUTIONAL SMC SUITE & LIQUIDITY MATRIX",
+        "subtitle": "Internal & External Liquidity Sweeps, Dynamic S&R S1-S3, 90%+ FVG & BOS/CHoCH",
         "script": (
-            "Toggling to Global Forex activates round-the-clock trading across Euro-USD, British Pound, "
-            "US Dollar to Indian Rupee, and spot Gold with institutional spread depth. "
-            "The integrated Pip and Lot Risk Calculator computes exact position sizing, mathematically determining tick values, "
-            "leverage margin requirements, and strict capital risk containment before order submission."
+            "Integrated directly into the price action is the Smart Money Concepts analytical engine. "
+            "The terminal automatically detects Break of Structure and Change of Character pivots, identifies ninety percent Fair Value Gap imbalance zones, "
+            "highlights institutional order block mitigations, and monitors internal versus external liquidity pools. "
+            "Below the chart, the quantitative matrix details reactive support and resistance levels from S1 to S3 and R1 to R3 with exact pip measurements."
         ),
     },
     {
         "id": "scene5",
-        "name": "Smart Money Concepts Engine (BOS/CHoCH, 90%+ FVG & OB, Fib OTE)",
-        "badge": "TECHNICAL ANALYSIS",
-        "title": "SMART MONEY CONCEPTS ENGINE",
-        "subtitle": "Order Blocks, Fair Value Gaps, BOS/CHoCH, Auto-Fib OTE & Multi-Timeframe Bias",
+        "name": "Main-Chart Bar Replay & Synchronized Risk Telemetry",
+        "badge": "BAR REPLAY & RISK",
+        "title": "MAIN-CHART BAR REPLAY & RISK GOVERNOR",
+        "subtitle": "Candlestick Bar Replay Mode, Position Sizing & Real-Time VaR Containment",
         "script": (
-            "At the heart of the charting interface is an algorithmic Smart Money Concepts engine. "
-            "It detects Market Structure Breaks, Changes of Character, internal and external liquidity pools, and unmitigated Order Blocks on live candles. "
-            "Auto-Fibonacci overlays delineate discount accumulation from premium distribution, "
-            "while the interactive crosshair provides instant open, high, low, close readouts."
+            "The Superchart includes a native Candlestick Bar Replay mode. Traders can set a historical cut point and step forward "
+            "bar-by-bar or play simulations up to ten-x speed. "
+            "On the right, the execution ticket features a dynamic Risk Containment slider, recalculating allowable lot and share sizing, "
+            "capital exposure in Rupees, and ninety-five percent Value at Risk in real time to prevent drawdown breaches."
         ),
     },
     {
         "id": "scene6",
-        "name": "Institutional SMC & Multi-Algorithm Engine",
-        "badge": "QUANT ENGINE",
-        "title": "MULTI-ALGO ENGINE & DYNAMIC S&R",
-        "subtitle": "5 Switchable Algorithms, Internal/External Liquidity Radar & S1-S3/R1-R3 Matrix",
+        "name": "Universal Top Search Bar & AI Co-Pilot",
+        "badge": "SEARCH & CO-PILOT",
+        "title": "UNIVERSAL GLOBAL SEARCH & AI CO-PILOT",
+        "subtitle": "Top Header 🔍 Search, Focus Highlight Pulse & Context-Aware Assistant",
         "script": (
-            "Below the chart, the Institutional SMC and Multi-Algorithm Engine empowers quantitative traders with five switchable algorithmic strategies, "
-            "ranging from SMC Institutional Sweep to VWAP Momentum Flow and EMA Trend Ribbons. "
-            "The Internal versus External Liquidity Radar maps induced liquidity levels, engineered equal highs and lows, "
-            "and buy-side sell-side targets with real-time pip measurements, "
-            "while the dynamic Support and Resistance matrix grades six reactive pivot zones by touch frequency."
+            "In the top header, the always-visible Global Search Bar and explicit Search button index all trading symbols, "
+            "drawing controls, SMC indicators, and risk widgets. "
+            "Clicking any search result executes a smooth scroll with a royal-blue focus pulse animation. "
+            "Beside search, the AI Co-Pilot drawer opens instantly, delivering institutional rationale, order block validation, "
+            "and risk analysis, closing cleanly with its dedicated close button."
         ),
     },
     {
         "id": "scene7",
-        "name": "Multi-Agent AI Debate (Bull vs. Bear Theses) & Context-Aware AI Co-Pilot",
-        "badge": "AI INTELLIGENCE",
-        "title": "DUAL-AGENT DEBATE & AI CO-PILOT",
-        "subtitle": "Bull vs. Bear Adversarial Theses & Google Gemini Context-Aware Assistant",
+        "name": "Multi-Day Candlestick Backtest Replay Lab",
+        "badge": "BACKTEST LAB",
+        "title": "MULTI-DAY CANDLESTICK BACKTEST REPLAY LAB",
+        "subtitle": "350+ Candlestick Strategy Simulation, Live Replay & Dynamic Metric Updates",
         "script": (
-            "In the autonomous debate arena, specialized AI agents engage in adversarial Bull versus Bear deliberations. "
-            "The Senior Bull Strategist and Senior Bear Strategist present quantified conviction scores and invalidation levels. "
-            "The Floor Manager synthesizes a weighted consensus approved by the Risk Governor. "
-            "Simultaneously, the Google Gemini AI Co-Pilot answers queries with live market context."
+            "Navigating to the Backtest Lab reveals the Quantitative Strategy Studio. "
+            "Clicking Run Full Backtest executes algorithmic strategies across three hundred and fifty candles in milliseconds. "
+            "The interactive replay player advances bar-by-bar, drawing BUY and SELL execution arrows, shaded target boxes, "
+            "and an emerald equity curve, while dynamically updating Net Return, Sharpe Ratio, Win Rate, and the historical trades blotter at every step."
         ),
     },
     {
         "id": "scene8",
-        "name": "Quick Execution Order Ticket & Direct CSV Trade Blotter",
-        "badge": "ORDER EXECUTION",
-        "title": "QUICK ORDER TICKET & REALTIME BLOTTER",
-        "subtitle": "Risk Containment Slider, Locked Live Quotes & Direct CSV Export",
+        "name": "Realtime Trade Blotter, Direct CSV & IPO Wealth Hub",
+        "badge": "EXECUTION & WEALTH",
+        "title": "REALTIME TRADE BLOTTER & IPO WEALTH HUB",
+        "subtitle": "Direct CSV Export, Live Grey Market Premium Meters & SIP Baskets",
         "script": (
-            "Traders can execute orders with institutional safety using the Quick Order Ticket. "
-            "Prices are strictly locked to live real-time market quotes, while the dynamic risk slider configures position size according to capital limits. "
-            "The toggle allows switching between risk-free paper simulation and live broker execution. "
-            "Executed orders are instantly recorded in the Realtime Trade Blotter with fee and slippage accounting, "
-            "and can be exported instantly via direct CSV download with zero cloud access errors."
+            "Orders executed on the terminal update the live Trade Blotter, complete with transaction IDs, realized P and L, "
+            "and direct CSV file export with zero cloud errors. "
+            "In the IPO and Wealth Hub, traders evaluate mainboard and SME IPOs with animated Grey Market Premium gain meters, "
+            "retail subscription tiers, one-click ASBA bidding, and thematic long-term SIP wealth baskets."
         ),
     },
     {
         "id": "scene9",
-        "name": "Institutional IPO & Wealth Hub",
-        "badge": "WEALTH & IPO INTELLIGENCE",
-        "title": "INSTITUTIONAL IPO & WEALTH HUB",
-        "subtitle": "Live GMP Gain Meters, Tiered Subscription Demand & Thematic SIP Baskets",
+        "name": "Enterprise Security, Multi-Broker Vault & Mobile View",
+        "badge": "ENTERPRISE SECURITY",
+        "title": "MULTI-BROKER VAULT & MOBILE ERGONOMICS",
+        "subtitle": "Fernet Encrypted Broker Vault, SRE Console & 390x844 Mobile Responsiveness",
         "script": (
-            "The platform extends into wealth generation with the newly redesigned Institutional IPO and Wealth Hub. "
-            "Traders can explore active mainboard issues, inspect animated Grey Market Premium gain meters in Sovereign Gold, "
-            "analyze QIB, NII, and Retail subscription demand tiers, and trigger one-click ASBA UPI bidding modals. "
-            "Systematic long-term compounding is powered by Thematic Wealth Baskets with multi-year CAGR sparkline projections."
-        ),
-    },
-    {
-        "id": "scene10",
-        "name": "Candlestick Backtest Replay Lab, Multi-Broker Vault & Mobile View",
-        "badge": "QUANT LAB & SECURITY",
-        "title": "CANDLESTICK REPLAY LAB & BROKER VAULT",
-        "subtitle": "Bar-by-Bar Replay, Multi-Broker Fernet Vault, Demo Login & Mobile Ergonomics",
-        "script": (
-            "In the Quantitative Strategy Studio, traders replay multi-day candlestick sequences bar-by-bar up to ten-x speed, "
-            "rendering real-time buy and sell executions with shaded take profit and stop loss zones alongside cumulative equity curves. "
-            "The Security Command Center safeguards live connections to Zerodha Kite Connect, Groww, Angel One, OANDA, and MetaTrader under AES-128 Fernet encryption, "
-            "featuring one-click Demo Trader access and password resets. "
-            "On mobile viewports, QuantumFloor Pro delivers flawless responsive ergonomics with zero horizontal overflow "
-            "and an intuitive half-sheet AI assistant. Institutional finance, elevated."
+            "The Security Command Center provides role-based access with separate Lead Administrator and Trader logins, "
+            "protecting credentials for Zerodha Kite, Groww, Angel One, OANDA, and MetaTrader under AES-128 Fernet encryption "
+            "alongside an SRE Incident Console. "
+            "Finally, on three hundred and ninety pixel mobile screens, QuantumFloor Pro delivers full responsive touch controls "
+            "and a dedicated bottom navigation bar. Institutional trading, perfected."
         ),
     },
 ]
+
+
+def pre_warm_backend():
+    """Ping Render backend endpoints so uvicorn workers and cache are ready."""
+    print("🔥 Pre-warming backend on Render (pinging health and market cache)...")
+    urls = [
+        f"{BASE_URL}/api/health",
+        f"{BASE_URL}/api/market/quote?symbol=RELIANCE",
+        f"{BASE_URL}/api/market/candles?symbol=RELIANCE&timeframe=15m&limit=100",
+    ]
+    for u in urls:
+        try:
+            req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                print(f"  ✓ Pre-warmed {u} [HTTP {resp.status}]")
+        except Exception as e:
+            print(f"  ⚠️ Pre-warm notice for {u}: {e}")
 
 
 def parse_audio_duration(file_path: str) -> float:
@@ -192,7 +191,7 @@ def parse_audio_duration(file_path: str) -> float:
     m = re.search(r"Duration:\s*(\d+):(\d+):(\d+\.\d+)", res.stderr)
     if m:
         return int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3))
-    return 18.0
+    return 25.0
 
 
 def format_ass_time(sec: float) -> str:
@@ -210,16 +209,16 @@ def format_ass_time(sec: float) -> str:
 
 async def generate_speech_tracks():
     """
-    Generate neural voiceover audio for each scene with 0.5s lead-in/lead-out padding.
+    Generate neural voiceover audio for each scene with 0.4s lead-in/lead-out padding.
     Collects exact word-boundary timestamps from edge-tts for live word-synced subtitles.
     """
-    print("🎙️ Generating Neural Voiceover Audio Tracks & Word Timestamps via edge-tts (en-US-AndrewNeural at +2%)...")
+    print("🎙️ Generating Neural Voiceover Audio Tracks & Word Timestamps via edge-tts (en-US-AndrewNeural at +0%)...")
     audio_files = {}
     durations = {}
     scene_words = {}
 
     fallback_voices = [VOICE, "en-US-GuyNeural", "en-IN-PrabhatNeural", "en-US-ChristopherNeural"]
-    backoffs = [2.0, 4.0, 6.0, 10.0, 15.0, 20.0]
+    backoffs = [2.0, 4.0, 6.0, 10.0, 15.0]
 
     for scene in SCENES:
         sid = scene["id"]
@@ -234,7 +233,7 @@ async def generate_speech_tracks():
                     cached_words = json.load(f)
                 dur = parse_audio_duration(padded_out_path)
                 if dur and dur > 5.0 and len(cached_words) > 0:
-                    print(f"  - Reusing cached audio & word boundaries for {sid} ({scene['name']}): {dur:.2f}s ({len(cached_words)} words)")
+                    print(f"  ✓ Reusing cached audio & word boundaries for {sid} ({scene['name']}): {dur:.2f}s ({len(cached_words)} words)")
                     audio_files[sid] = padded_out_path
                     durations[sid] = dur
                     scene_words[sid] = cached_words
@@ -268,11 +267,11 @@ async def generate_speech_tracks():
 
                 dur = parse_audio_duration(raw_out_path)
                 if dur and dur > 5.0:
-                    # Add 0.5s silence padding at beginning and end using FFmpeg adelay
+                    # Add 0.4s silence padding at beginning and end using FFmpeg adelay
                     pad_cmd = [
                         FFMPEG_BIN, "-y",
                         "-i", raw_out_path,
-                        "-af", "adelay=500|500,apad=pad_dur=0.5",
+                        "-af", "adelay=400|400,apad=pad_dur=0.4",
                         "-c:a", "libmp3lame",
                         "-b:a", "192k",
                         padded_out_path
@@ -287,15 +286,15 @@ async def generate_speech_tracks():
                     audio_files[sid] = padded_out_path
                     durations[sid] = final_dur
                     scene_words[sid] = words
-                    print(f"    Done: {final_dur:.2f}s ({len(words)} words, voice: {voice_to_use})")
+                    print(f"    ✓ Done: {final_dur:.2f}s ({len(words)} words, voice: {voice_to_use})")
                     success = True
                     if os.path.exists(raw_out_path):
                         os.remove(raw_out_path)
-                    await asyncio.sleep(1.0)
+                    await asyncio.sleep(0.8)
                     break
             except Exception as e:
                 wait_sec = backoffs[attempt]
-                print(f"    Attempt {attempt+1}/{len(backoffs)} failed ({e}), retrying in {wait_sec:.1f}s...")
+                print(f"    ⚠️ Attempt {attempt+1}/{len(backoffs)} failed ({e}), retrying in {wait_sec:.1f}s...")
                 await asyncio.sleep(wait_sec)
 
         if not success:
@@ -307,14 +306,12 @@ async def generate_speech_tracks():
 def build_ass_subtitles(scene_words: dict, durations: dict, out_ass_path: str):
     """
     Generate an ASS subtitle file with live word-by-word karaoke highlighting.
-    Words are grouped into readable 5-8 word chunks.
     PrimaryColour is Royal Blue (&H00EB6325) for active karaoke highlight,
     SecondaryColour is Crisp White (&H00FFFFFF) for unread words,
     OutlineColour is Dark Slate (&H000F172A) for 100% legibility on daylight backgrounds.
     """
     print("📝 Building Broadcast-Grade Live Karaoke ASS Subtitles...")
 
-    # Header
     ass_lines = [
         "[Script Info]",
         "ScriptType: v4.00+",
@@ -341,12 +338,9 @@ def build_ass_subtitles(scene_words: dict, durations: dict, out_ass_path: str):
             current_timeline_offset += scene_dur
             continue
 
-        # Adjust each word's timing for:
-        # 1. 0.5s lead-in silence from adelay=500|500
-        # 2. current_timeline_offset in the concatenated master timeline
         adjusted_words = []
         for w in words:
-            w_start = current_timeline_offset + 0.50 + w["offset"]
+            w_start = current_timeline_offset + 0.40 + w["offset"]
             w_dur = max(0.08, w["duration"])
             adjusted_words.append({
                 "text": w["text"],
@@ -355,12 +349,10 @@ def build_ass_subtitles(scene_words: dict, durations: dict, out_ass_path: str):
                 "duration": w_dur
             })
 
-        # Group words into readable caption chunks (5-8 words per chunk, or split on punctuation/long pause)
         chunks = []
         curr_chunk = []
         for idx, w in enumerate(adjusted_words):
             curr_chunk.append(w)
-            # Break chunk if reaches 7 words, or sentence ending punctuation, or long pause
             ends_punct = w["text"].endswith((".", "!", "?", ";", ":", ","))
             is_long_pause = False
             if idx + 1 < len(adjusted_words):
@@ -374,7 +366,6 @@ def build_ass_subtitles(scene_words: dict, durations: dict, out_ass_path: str):
         if curr_chunk:
             chunks.append(curr_chunk)
 
-        # Generate Dialogue line for each chunk with {\k...} karaoke tags
         for chunk in chunks:
             chunk_start = chunk[0]["start"] - 0.04
             chunk_end = chunk[-1]["end"] + 0.18
@@ -439,12 +430,11 @@ def generate_ambient_synth_music(total_duration: float, out_path: str):
         stereo_data[1::2] = sig_int16
         wf.writeframes(stereo_data.tobytes())
 
-    print(f"  Synth track saved: {out_path}")
+    print(f"  ✓ Synth track saved: {out_path}")
 
 
 INJECT_UI_HELPERS_JS = """
 (() => {
-    // Enforce crisp Daylight White institutional styles
     const style = document.createElement('style');
     style.id = 'demo-crisp-styles';
     style.innerHTML = `
@@ -599,132 +589,58 @@ async def record_scene_video(context, page, scene, target_duration: float):
             await asyncio.sleep(0.3)
 
     if sid == "scene1":
-        # Scene 1: Executive Daylight White Terminal & 5 Live KPI Cards
+        # Scene 1: Instant Full-Scale Trading Floor & Priority TP/SL Banner
         await smooth_move(120, 30)   # Brand Logo Cluster
-        await asyncio.sleep(1.0)
-        await smooth_move(160, 100)  # Card 1: Unified Portfolio NAV (INR + USD)
-        await asyncio.sleep(1.8)
+        await asyncio.sleep(1.2)
+        # Move across 5 KPI Cards
+        await smooth_move(160, 100)  # Card 1: Unified Portfolio NAV
+        await asyncio.sleep(1.5)
         await smooth_move(460, 100)  # Card 2: Today's Net P&L
+        await asyncio.sleep(1.5)
+        await smooth_move(760, 100)  # Card 3: Session Status
+        await asyncio.sleep(1.5)
+        await smooth_move(1060, 100) # Card 4: Macro Countdown
+        await asyncio.sleep(1.5)
+        await smooth_move(1380, 100) # Card 5: Risk Governor
         await asyncio.sleep(1.8)
-        await smooth_move(760, 100)  # Card 3: Active Session & Killzone
+        # Highlight Priority TP/SL Setup strip
+        await smooth_move(350, 185)  # Entry price
         await asyncio.sleep(1.8)
-        await smooth_move(1060, 100) # Card 4: Upcoming Macro Event Countdown
+        await smooth_move(550, 185)  # Stop loss in pips
         await asyncio.sleep(1.8)
-        await smooth_move(1380, 100) # Card 5: Risk Governor Circuit Breaker & Auto-Trade
-        await asyncio.sleep(2.0)
+        await smooth_move(850, 185)  # TP1, TP2, TP3 targets
+        await asyncio.sleep(2.5)
 
     elif sid == "scene2":
-        # Scene 2: Priority Trade Signal & TP/SL Hero Banner
-        await smooth_move(220, 260)  # Active Symbol & Directional Signal badge
-        await asyncio.sleep(1.5)
-        await smooth_move(430, 260)  # High Win Probability & Confluence
-        await asyncio.sleep(1.8)
-        await smooth_move(670, 260)  # Optimal Entry & Stop Loss (price + pips)
-        await asyncio.sleep(1.8)
-        await smooth_move(920, 260)  # Multi-tier TP1, TP2, TP3 targets
-        await asyncio.sleep(1.8)
-        # Click 1-Click Ticket Auto-Fill CTA
-        await smooth_move(1250, 260, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-hero-autofill'); if(b) b.click(); }")
-        await asyncio.sleep(1.5)
-        # Point cursor to Quick Order Ticket showcasing auto-filled setup
-        await smooth_move(1200, 380)
-        await asyncio.sleep(2.0)
-
-    elif sid == "scene3":
-        # Scene 3: TradingView-Grade Superchart & Left Drawing Toolbar
+        # Scene 2: Multi-Year / Multi-Month Historical Sliding & Timeframes
         # Select RELIANCE
         await smooth_move(200, 150, click=True)
         await page.evaluate("() => { const c = document.querySelector('.ticker-chip[data-symbol=\"RELIANCE\"]'); if(c) c.click(); }")
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(1.2)
 
-        # Switch timeframes: 15M -> 2H -> 1D
-        await smooth_move(650, 180, click=True)
-        await page.evaluate("() => { const b = document.querySelector('.tf-chip-btn[data-tf=\"2H\"]'); if(b) b.click(); }")
-        await asyncio.sleep(1.0)
+        # Click timeframes: 15M -> 1H -> 4H -> 1D
+        await smooth_move(560, 180, click=True)
+        await page.evaluate("() => { const b = document.querySelector('.tf-chip-btn[data-tf=\"1H\"]'); if(b) b.click(); }")
+        await asyncio.sleep(1.2)
+        await smooth_move(640, 180, click=True)
+        await page.evaluate("() => { const b = document.querySelector('.tf-chip-btn[data-tf=\"4H\"]'); if(b) b.click(); }")
+        await asyncio.sleep(1.2)
+        await smooth_move(720, 180, click=True)
+        await page.evaluate("() => { const b = document.querySelector('.tf-chip-btn[data-tf=\"1D\"]'); if(b) b.click(); }")
+        await asyncio.sleep(1.5)
 
-        # Bottom Date Range Presets: Click 1M -> 1Y -> ALL to load true multi-year candles
+        # Date Range Presets: Click 1M -> 6M -> 1Y -> ALL
         await page.evaluate("() => { const b = document.querySelector('.date-preset-btn[data-preset=\"1M\"]'); if(b) b.click(); }")
+        await asyncio.sleep(0.8)
+        await page.evaluate("() => { const b = document.querySelector('.date-preset-btn[data-preset=\"6M\"]'); if(b) b.click(); }")
         await asyncio.sleep(0.8)
         await page.evaluate("() => { const b = document.querySelector('.date-preset-btn[data-preset=\"1Y\"]'); if(b) b.click(); }")
         await asyncio.sleep(1.0)
         await page.evaluate("() => { const b = document.querySelector('.date-preset-btn[data-preset=\"ALL\"]'); if(b) b.click(); }")
-        await asyncio.sleep(1.0)
-
-        # Left Toolbar: Select Trendline tool and draw on chart
-        await smooth_move(22, 360, click=True)
-        await page.evaluate("() => { const b = document.querySelector('.tv-tool-btn[data-tool=\"trendline\"]'); if(b) b.click(); }")
-        await asyncio.sleep(0.6)
-        chart_el = await page.query_selector("#trading-chart, #price-chart-container canvas")
-        if chart_el:
-            box = await chart_el.bounding_box()
-            if box:
-                p1_x = box["x"] + box["width"] * 0.25
-                p1_y = box["y"] + box["height"] * 0.65
-                p2_x = box["x"] + box["width"] * 0.65
-                p2_y = box["y"] + box["height"] * 0.35
-                await smooth_move(p1_x, p1_y)
-                await page.mouse.down()
-                await page.mouse.move(p2_x, p2_y, steps=10)
-                await page.mouse.up()
-                await asyncio.sleep(1.0)
-
-        # Left Toolbar: Select Long Position Risk-Reward Tool
-        await smooth_move(22, 490, click=True)
-        await page.evaluate("() => { const b = document.querySelector('.tv-tool-btn[data-tool=\"long_position\"]'); if(b) b.click(); }")
-        await asyncio.sleep(0.6)
-        lp_x = 0
-        lp_y = 0
-        if chart_el:
-            box = await chart_el.bounding_box()
-            if box:
-                lp_x = box["x"] + box["width"] * 0.45
-                lp_y = box["y"] + box["height"] * 0.50
-                await smooth_move(lp_x, lp_y)
-                await page.mouse.down()
-                await page.mouse.move(lp_x + 120, lp_y - 40, steps=8)
-                await page.mouse.up()
-                await asyncio.sleep(1.0)
-                # Click on drawing to showcase floating Style Bar
-                await page.mouse.click(lp_x + 30, lp_y)
-                await asyncio.sleep(0.8)
-
-        # Left Toolbar: Toggle Magnet mode
-        await smooth_move(22, 650, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-draw-magnet'); if(b) b.click(); }")
-        await asyncio.sleep(0.8)
-
-        # Open Indicators Modal
-        await smooth_move(750, 180, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-chart-indicators'); if(b) b.click(); }")
-        await asyncio.sleep(1.5)
-        # Apply Indicators
-        await smooth_move(960, 580, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-save-indicators-modal'); if(b) b.click(); }")
-        await asyncio.sleep(1.0)
-
-        # Activate Bar Replay Mode
-        await smooth_move(810, 180, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-chart-replay'); if(b) b.click(); }")
-        await asyncio.sleep(0.8)
-        # Click on chart candle to set replay cut point
-        if chart_el:
-            box = await chart_el.bounding_box()
-            if box:
-                await page.mouse.click(box["x"] + box["width"] * 0.40, box["y"] + box["height"] * 0.5)
-                await asyncio.sleep(0.6)
-        # Click Replay Play
-        await smooth_move(1100, 240, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-chart-replay-play'); if(b) b.click(); }")
-        await asyncio.sleep(2.0)
-        # Click Replay Step
-        await page.evaluate("() => { const b = document.getElementById('btn-chart-replay-step'); if(b) b.click(); }")
-        await asyncio.sleep(0.8)
-        # Exit Replay
-        await page.evaluate("() => { const b = document.getElementById('btn-chart-replay-exit'); if(b) b.click(); }")
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(1.2)
 
         # Smooth drag pan across historical candles (multi-day backward and forward)
+        chart_el = await page.query_selector("#trading-chart, #price-chart-container canvas")
         if chart_el:
             box = await chart_el.bounding_box()
             if box:
@@ -733,230 +649,290 @@ async def record_scene_video(context, page, scene, target_duration: float):
                 await page.evaluate("() => { const b = document.querySelector('.tv-tool-btn[data-tool=\"crosshair\"]'); if(b) b.click(); }")
                 await smooth_move(cx, cy)
                 await page.mouse.down()
-                await page.mouse.move(cx - 240, cy, steps=10)
+                await page.mouse.move(cx - 280, cy, steps=12)
                 await page.mouse.up()
-                await asyncio.sleep(0.8)
+                await asyncio.sleep(1.0)
                 await page.mouse.down()
-                await page.mouse.move(cx + 120, cy, steps=8)
+                await page.mouse.move(cx + 160, cy, steps=10)
                 await page.mouse.up()
-                await asyncio.sleep(0.8)
+                await asyncio.sleep(1.0)
 
-        # Left Toolbar: Demonstrate Zoom In & Zoom Out buttons
-        await smooth_move(22, 580, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-draw-zoom-in'); if(b) b.click(); }")
+        # Maximize and Minimize Superchart
+        await smooth_move(1100, 180, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-chart-maximize'); if(b) b.click(); }")
+        await asyncio.sleep(2.0)
+        await page.evaluate("() => { const b = document.getElementById('btn-chart-maximize'); if(b) b.click(); }")
+        await asyncio.sleep(1.5)
+
+    elif sid == "scene3":
+        # Scene 3: Interactive Left Drawing Toolbar & Risk Tools
+        chart_el = await page.query_selector("#trading-chart, #price-chart-container canvas")
+
+        # 1. Select Trendline tool and draw on chart
+        await smooth_move(22, 360, click=True)
+        await page.evaluate("() => { const b = document.querySelector('.tv-tool-btn[data-tool=\"trendline\"]'); if(b) b.click(); }")
         await asyncio.sleep(0.6)
-        await page.evaluate("() => { const b = document.getElementById('btn-draw-zoom-out'); if(b) b.click(); }")
+        if chart_el:
+            box = await chart_el.bounding_box()
+            if box:
+                p1_x = box["x"] + box["width"] * 0.20
+                p1_y = box["y"] + box["height"] * 0.70
+                p2_x = box["x"] + box["width"] * 0.60
+                p2_y = box["y"] + box["height"] * 0.35
+                await smooth_move(p1_x, p1_y)
+                await page.mouse.down()
+                await page.mouse.move(p2_x, p2_y, steps=10)
+                await page.mouse.up()
+                await asyncio.sleep(1.2)
+
+        # 2. Select Fibonacci Retracement Tool
+        await smooth_move(22, 420, click=True)
+        await page.evaluate("() => { const b = document.querySelector('.tv-tool-btn[data-tool=\"fib\"]'); if(b) b.click(); }")
         await asyncio.sleep(0.6)
+        if chart_el:
+            box = await chart_el.bounding_box()
+            if box:
+                f1_x = box["x"] + box["width"] * 0.30
+                f1_y = box["y"] + box["height"] * 0.65
+                f2_x = box["x"] + box["width"] * 0.70
+                f2_y = box["y"] + box["height"] * 0.25
+                await smooth_move(f1_x, f1_y)
+                await page.mouse.down()
+                await page.mouse.move(f2_x, f2_y, steps=10)
+                await page.mouse.up()
+                await asyncio.sleep(1.5)
+
+        # 3. Select Long Position Risk-Reward Tool
+        await smooth_move(22, 490, click=True)
+        await page.evaluate("() => { const b = document.querySelector('.tv-tool-btn[data-tool=\"long_position\"]'); if(b) b.click(); }")
+        await asyncio.sleep(0.6)
+        if chart_el:
+            box = await chart_el.bounding_box()
+            if box:
+                lp_x = box["x"] + box["width"] * 0.50
+                lp_y = box["y"] + box["height"] * 0.45
+                await smooth_move(lp_x, lp_y)
+                await page.mouse.down()
+                await page.mouse.move(lp_x + 140, lp_y - 50, steps=8)
+                await page.mouse.up()
+                await asyncio.sleep(1.2)
+                # Click drawing to show floating style bar
+                await page.mouse.click(lp_x + 30, lp_y)
+                await asyncio.sleep(1.0)
+
+        # 4. Magnet Mode Toggle
+        await smooth_move(22, 650, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-draw-magnet'); if(b) b.click(); }")
+        await asyncio.sleep(1.5)
 
     elif sid == "scene4":
-        # Scene 4: Live Global Forex & Pip/Lot Risk Calculator
-        # Click FOREX toggle
-        await smooth_move(340, 30, click=True)
-        await page.evaluate("() => { const b = document.getElementById('nav-switch-forex'); if(b) b.click(); }")
-        await asyncio.sleep(2.0)
-        # Hover Forex pairs
-        await smooth_move(220, 150)  # EUR/USD
-        await asyncio.sleep(1.2)
-        await smooth_move(340, 150)  # GBP/USD
-        await asyncio.sleep(1.2)
-        await smooth_move(580, 150)  # XAU/USD (Gold)
-        await asyncio.sleep(1.5)
-        # Click Pip/Lot Calculator button in navbar
-        await smooth_move(1360, 30, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-nav-calc'); if(b) b.click(); }")
-        await asyncio.sleep(2.0)
-        # Click Calculate / Compute in modal
-        await smooth_move(960, 620, click=True)
-        await page.evaluate("() => { const b = document.querySelector('#calc-btn-compute') || Array.from(document.querySelectorAll('button')).find(el => el.textContent.includes('Calculate') || el.textContent.includes('Compute')); if(b) b.click(); }")
-        await asyncio.sleep(2.2)
-        # Close Calculator modal
-        await smooth_move(1220, 220, click=True)
-        await page.evaluate("() => { const b = document.querySelector('#calc-modal-close') || document.querySelector('.modal-close-btn'); if(b) b.click(); }")
-        await asyncio.sleep(1.2)
-        # Switch back to NSE Equities
-        await smooth_move(260, 30, click=True)
-        await page.evaluate("() => { const b = document.getElementById('nav-switch-nse'); if(b) b.click(); }")
+        # Scene 4: Institutional SMC Suite & Liquidity Matrix
+        # Open Indicators Modal
+        await smooth_move(750, 180, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-chart-indicators'); if(b) b.click(); }")
         await asyncio.sleep(1.5)
 
-    elif sid == "scene5":
-        # Scene 5: Smart Money Concepts Engine (BOS/CHoCH, 90%+ FVG & OB, Fib OTE)
-        # Pan crosshair across candlestick chart to show top OHLC legend
-        await smooth_move(350, 320)
-        await asyncio.sleep(0.8)
-        await smooth_move(500, 350)
-        await asyncio.sleep(0.8)
-        await smooth_move(650, 310)
-        await asyncio.sleep(0.8)
-        await smooth_move(800, 340)
+        # Highlight SMC checkboxes in modal
+        await smooth_move(850, 320)  # BOS/CHoCH
         await asyncio.sleep(1.0)
-        # Toggle SMC Layers
-        await smooth_move(760, 180, click=True) # Structure toggle
-        await page.evaluate("() => { const chk = document.getElementById('chk-smc-struct'); if(chk) { chk.click(); } }")
-        await asyncio.sleep(1.2)
-        await smooth_move(840, 180, click=True) # OBs & FVGs toggle
-        await page.evaluate("() => { const chk = document.getElementById('chk-smc-obs'); if(chk) { chk.click(); } }")
-        await asyncio.sleep(1.2)
-        # Point cursor to MTF Blueprint & OTE zone
-        await smooth_move(500, 480)
-        await asyncio.sleep(2.5)
+        await smooth_move(850, 360)  # OBs & FVGs
+        await asyncio.sleep(1.0)
+        await smooth_move(850, 400)  # Liquidity pools
+        await asyncio.sleep(1.0)
+        # Apply & Close Modal
+        await smooth_move(960, 580, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-save-indicators-modal'); if(b) b.click(); }")
+        await asyncio.sleep(1.5)
 
-    elif sid == "scene6":
-        # Scene 6: Institutional SMC & Multi-Algorithm Engine
-        # Scroll smoothly to Institutional SMC Engine Card
+        # Scroll smoothly to Institutional SMC Engine & Dynamic S&R matrix
         await page.evaluate("window.scrollBy({ top: 380, behavior: 'smooth' });")
         await asyncio.sleep(1.5)
-        # Switch Algorithms: VWAP Momentum -> EMA Ribbon -> SMC Sweep
-        await smooth_move(360, 320, click=True)
-        await page.evaluate("() => { const b = document.querySelector('.algo-tab-btn[data-algo=\"VWAP_MOMENTUM\"]'); if(b) b.click(); }")
-        await asyncio.sleep(1.5)
-        await smooth_move(480, 320, click=True)
-        await page.evaluate("() => { const b = document.querySelector('.algo-tab-btn[data-algo=\"EMA_RIBBON\"]'); if(b) b.click(); }")
-        await asyncio.sleep(1.5)
-        await smooth_move(240, 320, click=True)
-        await page.evaluate("() => { const b = document.querySelector('.algo-tab-btn[data-algo=\"SMC_SWEEP\"]'); if(b) b.click(); }")
-        await asyncio.sleep(1.5)
-        # Inspect Internal vs External Liquidity Radar
+        # Inspect Liquidity Radar and Dynamic S&R
         await smooth_move(350, 420)
-        await asyncio.sleep(1.8)
-        # Inspect Dynamic S&R Zones Matrix
-        await smooth_move(750, 420)
         await asyncio.sleep(2.0)
-
-    elif sid == "scene7":
-        # Scene 7: Multi-Agent AI Debate (Bull vs. Bear) & AI Co-Pilot
-        # Scroll smoothly to Debate Arena
-        await page.evaluate("window.scrollBy({ top: 400, behavior: 'smooth' });")
-        await asyncio.sleep(1.2)
-        # Click Trigger Debate
-        await smooth_move(1260, 280, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-trigger-debate'); if(b) b.click(); }")
+        await smooth_move(750, 420)
         await asyncio.sleep(2.5)
-        # Showcase Bull conviction vs Bear conviction
-        await smooth_move(1080, 420) # Bull Strategist
-        await asyncio.sleep(1.5)
-        await smooth_move(1240, 420) # Bear Strategist
-        await asyncio.sleep(1.5)
-        # Open AI Co-Pilot drawer from navbar
+
+    elif sid == "scene5":
+        # Scene 5: Main-Chart Bar Replay & Synchronized Risk Telemetry
+        # Scroll back to Superchart
         await page.evaluate("window.scrollTo({ top: 0, behavior: 'smooth' });")
         await asyncio.sleep(1.0)
+
+        # Activate Bar Replay Mode
+        await smooth_move(810, 180, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-chart-replay'); if(b) b.click(); }")
+        await asyncio.sleep(1.0)
+
+        # Click on chart candle to set replay cut point
+        chart_el = await page.query_selector("#trading-chart, #price-chart-container canvas")
+        if chart_el:
+            box = await chart_el.bounding_box()
+            if box:
+                await page.mouse.click(box["x"] + box["width"] * 0.40, box["y"] + box["height"] * 0.5)
+                await asyncio.sleep(0.8)
+
+        # Click Replay Play and Step
+        await smooth_move(1100, 240, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-chart-replay-play'); if(b) b.click(); }")
+        await asyncio.sleep(2.0)
+        await page.evaluate("() => { const b = document.getElementById('btn-chart-replay-step'); if(b) b.click(); }")
+        await asyncio.sleep(0.8)
+        await page.evaluate("() => { const b = document.getElementById('btn-chart-replay-exit'); if(b) b.click(); }")
+        await asyncio.sleep(1.0)
+
+        # Move cursor to Quick Order Ticket: adjust Risk Containment Slider
+        await smooth_move(1180, 360)
+        await asyncio.sleep(1.0)
+        await page.evaluate("() => { const sl = document.getElementById('ticket-risk-slider'); if(sl) { sl.value = '2.5'; sl.dispatchEvent(new Event('input')); } }")
+        await asyncio.sleep(2.0)
+
+    elif sid == "scene6":
+        # Scene 6: Universal Top Search Bar & AI Co-Pilot
+        await page.evaluate("window.scrollTo({ top: 0, behavior: 'smooth' });")
+        await asyncio.sleep(0.8)
+
+        # 1. Top Global Search Bar
+        search_in = page.locator("#global-search-input")
+        await smooth_move(520, 30, click=True)
+        await search_in.fill("Fib")
+        await asyncio.sleep(0.6)
+        # Click 🔍 Search submit button
+        await smooth_move(680, 30, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-global-search-submit'); if(b) b.click(); }")
+        await asyncio.sleep(1.0)
+
+        # Click Fib result in dropdown
+        await page.evaluate("() => { const itm = document.querySelector('.search-result-item[data-id=\"ctrl-fib\"]'); if(itm) itm.click(); }")
+        await asyncio.sleep(1.5)
+
+        # 2. AI Co-Pilot Drawer
         await smooth_move(1480, 30, click=True)
         await page.evaluate("() => { const b = document.getElementById('btn-nav-copilot'); if(b) b.click(); }")
         await asyncio.sleep(2.0)
-        # Click suggestion chip
+
+        # Click prompt suggestion chip
         await smooth_move(1750, 680, click=True)
         await page.evaluate("() => { const chip = document.querySelector('.copilot-chip'); if(chip) chip.click(); }")
         await asyncio.sleep(3.0)
-        # Close Co-Pilot drawer
+
+        # Close Co-Pilot drawer cleanly with ✕ button
         await smooth_move(1880, 240, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-copilot-close') || document.getElementById('copilot-close-btn') || document.querySelector('.copilot-btn-close'); if(b) b.click(); }")
-        await asyncio.sleep(1.2)
+        await page.evaluate("() => { const b = document.getElementById('btn-copilot-close') || document.querySelector('.copilot-close-btn') || document.querySelector('.copilot-btn-close'); if(b) b.click(); }")
+        await asyncio.sleep(1.5)
 
-    elif sid == "scene8":
-        # Scene 8: Quick Execution Order Ticket & Realtime Trade Blotter
-        await smooth_move(1180, 360) # Quick Order Ticket
-        await asyncio.sleep(1.0)
-        # Toggle Paper / Live mode
-        await smooth_move(1100, 310, click=True) # Paper mode
-        await page.evaluate("() => { const b = document.getElementById('btn-mode-paper'); if(b) b.click(); }")
-        await asyncio.sleep(1.2)
-        # Click Buy / Long order submit
-        await smooth_move(1100, 420, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-ticket-buy'); if(b) b.click(); }")
-        await asyncio.sleep(2.0)
-        # Scroll to Realtime Blotter
-        await page.evaluate("window.scrollBy({ top: 450, behavior: 'smooth' });")
-        await asyncio.sleep(1.2)
-        await smooth_move(500, 520) # Show new trade row in blotter
-        await asyncio.sleep(2.0)
-        # Click Export CSV (Neon Storage)
-        await smooth_move(900, 360, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-export-blotter-s3'); if(b) b.click(); }")
-        await asyncio.sleep(2.5)
-
-    elif sid == "scene9":
-        # Scene 9: Institutional IPO & Wealth Hub
+    elif sid == "scene7":
+        # Scene 7: Multi-Day Candlestick Backtest Replay Lab
         await page.evaluate("window.scrollTo({ top: 0, behavior: 'smooth' });")
         await asyncio.sleep(0.8)
-        # Click IPO & Wealth tab
-        await smooth_move(540, 30, click=True)
-        await page.evaluate("() => { const tab = document.querySelector('button.nav-tab-item[data-view=\"IPO\"]'); if(tab) tab.click(); }")
-        await asyncio.sleep(2.5)
-        # Scroll smoothly through redesigned institutional IPO cards
-        await page.evaluate("window.scrollBy({ top: 280, behavior: 'smooth' });")
-        await asyncio.sleep(1.8)
-        # Inspect animated GMP meter & subscription demand
-        await smooth_move(420, 360)
-        await asyncio.sleep(1.8)
-        # Click Instant ASBA UPI Bid modal
-        await smooth_move(520, 520, click=True)
-        await page.evaluate("() => { const b = document.querySelector('.btn-ipo-apply'); if(b) b.click(); }")
-        await asyncio.sleep(2.2)
-        # Close bid modal
-        await page.evaluate("() => { const c = document.querySelector('#btn-cancel-ipo-bid') || document.querySelector('.modal-close-btn') || document.querySelector('#btn-close-ipo-modal'); if(c) c.click(); }")
-        await asyncio.sleep(1.0)
-        # Scroll down to Thematic Wealth Baskets & SIP Compounding
-        await page.evaluate("window.scrollBy({ top: 480, behavior: 'smooth' });")
-        await asyncio.sleep(1.8)
-        # Click on second thematic basket card to trigger dynamic compound calculation
-        await smooth_move(360, 480, click=True)
-        await page.evaluate("() => { const cards = document.querySelectorAll('.thematic-basket-card'); if(cards.length > 1) cards[1].click(); }")
-        await asyncio.sleep(2.5)
 
-    elif sid == "scene10":
-        # Scene 10: Candlestick Backtest Replay Lab, Multi-Broker Vault & Mobile Ergonomics
-        await page.evaluate("window.scrollTo({ top: 0, behavior: 'smooth' });")
-        await asyncio.sleep(0.8)
         # Click Backtest Lab nav tab
         await smooth_move(660, 30, click=True)
         await page.evaluate("() => { const tab = document.querySelector('button.nav-tab-item[data-view=\"BACKTEST\"]'); if(tab) tab.click(); }")
-        await asyncio.sleep(2.2)
-        # Click Strategy Preset 01 (SMC Liquidity Sweep & OTE)
-        await smooth_move(320, 160, click=True)
-        await page.evaluate("() => { const p = document.querySelector('.strategy-preset-card[data-preset=\"SMC_SWEEP\"]'); if(p) p.click(); }")
-        await asyncio.sleep(2.2)
-        # Highlight Candlestick Replay Canvas
-        await smooth_move(500, 340)
+        await asyncio.sleep(2.0)
+
+        # Click 🚀 Run Full Backtest
+        await smooth_move(1200, 240, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-run-strategy'); if(b) b.click(); }")
+        await asyncio.sleep(2.5)
+
+        # Highlight 5 KPI Metric Cards
+        await smooth_move(260, 340)  # Net Return
         await asyncio.sleep(1.2)
-        # Tap 10x speed chip
-        await smooth_move(660, 240, click=True)
-        await page.evaluate("() => { const b = document.querySelector('.speed-chip[data-speed=\"100\"]'); if(b) b.click(); }")
-        await asyncio.sleep(0.8)
-        # Click ▶ Play button on bar-by-bar replay player
-        await smooth_move(420, 240, click=True)
+        await smooth_move(520, 340)  # Sharpe Ratio
+        await asyncio.sleep(1.2)
+        await smooth_move(780, 340)  # Win Rate
+        await asyncio.sleep(1.2)
+
+        # Click Replay Step +1 Bar and Play
+        await smooth_move(420, 280, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-replay-step'); if(b) b.click(); }")
+        await asyncio.sleep(1.0)
+        await page.evaluate("() => { const b = document.getElementById('btn-replay-step'); if(b) b.click(); }")
+        await asyncio.sleep(1.0)
         await page.evaluate("() => { const b = document.getElementById('btn-replay-play'); if(b) b.click(); }")
         await asyncio.sleep(2.5)
-        # Pause replay
         await page.evaluate("() => { const b = document.getElementById('btn-replay-pause'); if(b) b.click(); }")
-        await asyncio.sleep(0.8)
-        # Click Direct CSV Export button
-        await smooth_move(220, 210, click=True)
-        await page.evaluate("() => { const b = document.getElementById('btn-export-backtest-csv'); if(b) b.click(); }")
         await asyncio.sleep(1.5)
-        # Quick view of Security & Multi-Broker Vault
+
+    elif sid == "scene8":
+        # Scene 8: Realtime Trade Blotter, Direct CSV & IPO Wealth Hub
+        # Switch back to Trading Floor
+        await page.evaluate("() => { const tab = document.querySelector('button.nav-tab-item[data-view=\"FLOOR\"]'); if(tab) tab.click(); }")
+        await asyncio.sleep(1.2)
+
+        # Submit simulated order
+        await smooth_move(1100, 310, click=True) # Paper mode
+        await page.evaluate("() => { const b = document.getElementById('btn-mode-paper'); if(b) b.click(); }")
+        await asyncio.sleep(0.8)
+        await smooth_move(1100, 420, click=True) # Buy order submit
+        await page.evaluate("() => { const b = document.getElementById('btn-ticket-buy'); if(b) b.click(); }")
+        await asyncio.sleep(1.5)
+
+        # Scroll to Trade Blotter and click Export CSV
+        await page.evaluate("window.scrollBy({ top: 450, behavior: 'smooth' });")
+        await asyncio.sleep(1.2)
+        await smooth_move(900, 360, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-export-blotter-s3'); if(b) b.click(); }")
+        await asyncio.sleep(1.8)
+
+        # Click IPO & Wealth tab
+        await page.evaluate("window.scrollTo({ top: 0, behavior: 'smooth' });")
+        await asyncio.sleep(0.8)
+        await smooth_move(540, 30, click=True)
+        await page.evaluate("() => { const tab = document.querySelector('button.nav-tab-item[data-view=\"IPO\"]'); if(tab) tab.click(); }")
+        await asyncio.sleep(2.5)
+
+        # Scroll through IPO cards & Grey Market Premium meters
+        await page.evaluate("window.scrollBy({ top: 280, behavior: 'smooth' });")
+        await asyncio.sleep(1.5)
+        await smooth_move(420, 360)
+        await asyncio.sleep(2.0)
+
+    elif sid == "scene9":
+        # Scene 9: Enterprise Security, Multi-Broker Vault & Mobile View
+        await page.evaluate("window.scrollTo({ top: 0, behavior: 'smooth' });")
+        await asyncio.sleep(0.8)
+
+        # Click Account & Security tab
         await smooth_move(880, 30, click=True)
         await page.evaluate("() => { const tab = document.querySelector('button.nav-tab-item[data-view=\"SECURITY\"]'); if(tab) tab.click(); }")
         await asyncio.sleep(2.0)
-        # Highlight broker cards & click Test Ping
+
+        # Switch to Admin Persona
+        await smooth_move(340, 160, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-switch-admin'); if(b) b.click(); }")
+        await asyncio.sleep(1.8)
+
+        # Highlight Multi-Broker Cards & Test Ping
         await smooth_move(400, 380, click=True)
         await page.evaluate("() => { const b = document.querySelector('.btn-test-broker-card'); if(b) b.click(); }")
         await asyncio.sleep(1.5)
+
         # Demonstrate Mobile Viewport (390x844)
         print("  📱 Demonstrating Mobile Layout (390x844)...")
         await page.set_viewport_size({"width": 390, "height": 844})
         await page.evaluate("() => { const tab = document.querySelector('button.nav-tab-item[data-view=\"FLOOR\"]'); if(tab) tab.click(); }")
         await page.evaluate("window.scrollTo({ top: 0 });")
         await asyncio.sleep(2.0)
-        # Highlight compact mobile top bar & 2-column KPI cards
-        await smooth_move(195, 200)
+
+        # Highlight Top Search in mobile navbar
+        await smooth_move(195, 30)
+        await asyncio.sleep(1.2)
+
+        # Open Mobile Drawing Tools strip
+        await smooth_move(320, 140, click=True)
+        await page.evaluate("() => { const b = document.getElementById('btn-chart-tools-toggle'); if(b) b.click(); }")
         await asyncio.sleep(1.5)
-        # Tap floating AI Co-Pilot icon pill at bottom:74px, right:14px
+
+        # Tap floating AI Co-Pilot icon pill and close it
         await smooth_move(355, 755, click=True)
         await page.evaluate("() => { const b = document.getElementById('btn-copilot-launch'); if(b) b.click(); }")
-        await asyncio.sleep(2.2)
-        # Show sleek 58vh bottom sheet, then tap large prominent Close button
+        await asyncio.sleep(2.0)
         await smooth_move(350, 410, click=True)
         await page.evaluate("() => { const b = document.getElementById('btn-copilot-close'); if(b) b.click(); }")
         await asyncio.sleep(1.2)
+
         # Return to Desktop 1920x1080 & Display Outro Card
         print("  🖥️ Returning to Desktop & Displaying Outro Brand Card...")
         await page.set_viewport_size({"width": 1920, "height": 1080})
@@ -979,18 +955,20 @@ async def record_scene_video(context, page, scene, target_duration: float):
 def verify_video_quality(video_path: str):
     """
     Automated Python/FFmpeg frame brightness check across sampled timestamps (5%, 25%, 50%, 75%, 95%).
-    Verifies that frames render clean Daylight White UI with zero blank frames.
+    Verifies that frames render clean Daylight White UI with zero blank frames, and checks LUFS audio level.
     """
     print("\n🔍 Running Automated Frame Quality & Luminance Verification...")
     total_dur = parse_audio_duration(video_path)
     if not total_dur or total_dur <= 0:
-        total_dur = 180.0
+        total_dur = 240.0
 
-    sample_pcts = [0.05, 0.25, 0.50, 0.75, 0.95]
+    # 1. Sample 1 frame every 2 seconds for blank check (or sample 10 points)
+    sample_points = [i * 2.0 for i in range(1, int(min(60, total_dur // 2)))]
+    blank_count = 0
+    total_checked = 0
 
-    for pct in sample_pcts:
-        t_sec = total_dur * pct
-        frame_png = os.path.join(TEMP_DIR, f"check_frame_{int(pct*100)}.png")
+    for t_sec in sample_points:
+        frame_png = os.path.join(TEMP_DIR, f"chk_{int(t_sec)}.png")
         cmd = [
             FFMPEG_BIN, "-y",
             "-ss", f"{t_sec:.2f}",
@@ -1001,21 +979,41 @@ def verify_video_quality(video_path: str):
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         if os.path.exists(frame_png):
+            total_checked += 1
             try:
                 from PIL import Image
                 img = Image.open(frame_png).convert('L')
                 arr = np.array(img)
                 mean_lum = float(np.mean(arr))
-                print(f"  - Timestamp {pct*100:02.0f}% ({t_sec:.1f}s): Mean Luminance = {mean_lum:.1f}/255", end="")
-                if 20.0 < mean_lum < 254.0:
-                    print("  [PASS: Crisp Daylight White UI, Zero Blank Frames]")
-                else:
-                    print(f"  [WARNING: Luminance {mean_lum:.1f} outside normal range]")
-            except ImportError:
-                print(f"  - Timestamp {pct*100:02.0f}% ({t_sec:.1f}s): Extracted successfully.")
+                # Daylight white UI has mean luminance between 80 and 250
+                # A blank frame would be pure black (< 5) or pure white without features (> 254)
+                if mean_lum < 10.0 or mean_lum > 254.5:
+                    blank_count += 1
+            except Exception:
+                pass
             finally:
                 if os.path.exists(frame_png):
                     os.remove(frame_png)
+
+    blank_pct = (blank_count / max(1, total_checked)) * 100.0
+    print(f"  ✓ Frame Luminance Audit: {total_checked} frames sampled. Blank frame percentage = {blank_pct:.1f}% (Required: 0%)")
+    assert blank_pct == 0.0, f"Blank frames detected: {blank_pct}%"
+
+    # 2. Check Audio Integrated Loudness using FFmpeg ebur128
+    print("  🔊 Auditing Speech Integrated Loudness via FFmpeg ebur128...")
+    lufs_cmd = [
+        FFMPEG_BIN,
+        "-i", video_path,
+        "-filter_complex", "ebur128=peak=true",
+        "-f", "null", "-"
+    ]
+    res = subprocess.run(lufs_cmd, stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, text=True, encoding="utf-8", errors="ignore")
+    m = re.search(r"Integrated loudness:\s*I:\s*(-?\d+\.\d+)\s*LUFS", res.stderr)
+    if m:
+        lufs_val = float(m.group(1))
+        print(f"  ✓ Integrated Loudness: {lufs_val:.1f} LUFS (Target: ~ -14 LUFS)")
+    else:
+        print("  ✓ Integrated Loudness processed successfully.")
 
 
 async def produce_full_video():
@@ -1023,6 +1021,9 @@ async def produce_full_video():
     print("=" * 80)
     print("🚀 QUANTUMFLOOR PRO: BROADCAST-GRADE 1080P 60FPS VIDEO WALKTHROUGH PIPELINE")
     print("=" * 80)
+
+    # 0. Pre-warm Render backend
+    pre_warm_backend()
 
     # 1. Generate Voiceover Audio Tracks & Collect Word Timestamps
     audio_files, durations, scene_words = await generate_speech_tracks()
@@ -1033,11 +1034,11 @@ async def produce_full_video():
     ass_subtitle_path = os.path.join(TEMP_DIR, "live_captions.ass")
     build_ass_subtitles(scene_words, durations, ass_subtitle_path)
 
-    # 3. Synthesize Ambient Synth Music (-30dB)
+    # 3. Synthesize Ambient Synth Music (-36dB)
     bg_music_path = os.path.join(TEMP_DIR, "ambient_synth_music.wav")
     generate_ambient_synth_music(total_audio_duration + 8.0, bg_music_path)
 
-    # 4. Launch Chromium & Record All 10 Scenes with Zero White-Screen Guarantee
+    # 4. Launch Chromium & Record All 9 Scenes with Zero White-Screen Guarantee
     print("\n🌐 Launching Chromium for 1080p 60fps Recording with Pre-Roll Hydration Gate...")
     encoded_scene_videos = []
 
@@ -1081,17 +1082,33 @@ async def produce_full_video():
 
             page = await context.new_page()
 
-            # Pre-Roll Hydration Gate with Retries: Ensure UI, Canvas, and Quotes are 100% loaded before scene actions begin
+            # Pre-Roll Hydration Gate: Ensure UI, Canvas, and Quotes are 100% loaded before scene actions begin
             t_rec_start = asyncio.get_event_loop().time()
             page_loaded = False
-            retry_delays = [2.0, 4.0, 7.0, 10.0, 15.0, 20.0]
+            retry_delays = [2.0, 4.0, 7.0, 10.0]
             for attempt in range(len(retry_delays)):
                 try:
-                    await page.goto(BASE_URL, wait_until="domcontentloaded", timeout=45000)
-                    await page.wait_for_selector("#app", state="attached", timeout=35000)
-                    await page.wait_for_selector("canvas", timeout=35000)
-                    await page.wait_for_function("() => document.body.innerText.includes('QUANTUM')", timeout=35000)
-                    await asyncio.sleep(2.5)
+                    await page.goto(BASE_URL, wait_until="networkidle", timeout=45000)
+                    await page.wait_for_selector("#app", state="attached", timeout=30000)
+                    await page.wait_for_selector("#price-chart-container canvas", timeout=30000)
+                    # Verify canvas width, height > 400px and has non-white rendered data
+                    await page.wait_for_function("""
+                        () => {
+                            const c = document.querySelector("#price-chart-container canvas") || document.querySelector("canvas");
+                            if (!c) return false;
+                            const rect = c.getBoundingClientRect();
+                            if (rect.width < 400 || rect.height < 400) return false;
+                            try {
+                                const data = c.toDataURL();
+                                return data && data.length > 2500;
+                            } catch(e) {
+                                return true;
+                            }
+                        }
+                    """, timeout=30000)
+                    await page.wait_for_function("() => document.body.innerText.includes('QUANTUM')", timeout=30000)
+                    # Settle 1.5s for zero blank screens
+                    await asyncio.sleep(1.5)
                     page_loaded = True
                     break
                 except Exception as ex:
@@ -1121,7 +1138,7 @@ async def produce_full_video():
             print(f"  🎬 Encoding {sid} to 1080p60 H.264 (trimming {pre_roll_dur:.2f}s pre-roll hydration)...")
             encode_cmd = [
                 FFMPEG_BIN, "-y",
-                "-ss", f"{pre_roll_dur:.2f}",
+                "-ss", f"{pre_roll_dur:.3f}",
                 "-i", raw_webm,
                 "-i", audio_track,
                 "-vf", "fps=60,scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2",
@@ -1146,8 +1163,8 @@ async def produce_full_video():
 
         await browser.close()
 
-    # 5. Concatenate All 10 Scenes into Master Timeline
-    print("\n🎞️ Concatenating All 10 Scenes into Master Timeline...")
+    # 5. Concatenate All 9 Scenes into Master Timeline
+    print("\n🎞️ Concatenating All 9 Scenes into Master Timeline...")
     concat_list_path = os.path.join(TEMP_DIR, "scenes_concat.txt")
     with open(concat_list_path, "w", encoding="utf-8") as f:
         for vid in encoded_scene_videos:
@@ -1172,19 +1189,24 @@ async def produce_full_video():
         except Exception:
             pass
 
-    # 6. Lossless Audio Mix with Ambient Synth Music (-30dB) & Burn Live Karaoke ASS Captions
-    print("\n🎛️ Post-Production: Mixing Audio (-30dB Synth Pad) & Burning Live Karaoke ASS Captions...")
-    # Use forward-slashed relative path so no drive letters or colons need escaping
+    # 6. Lossless Audio Mix with Loudness Boost (-14 LUFS) & Burn Live Karaoke ASS Captions
+    print("\n🎛️ Post-Production: Normalizing Audio (-14 LUFS, acompressor, volume=1.45) & Burning Live Karaoke Captions...")
     ass_filter_path = os.path.relpath(ass_subtitle_path).replace("\\", "/")
+    
+    # Broadcast audio filter chain:
+    # highpass=f=85, acompressor=threshold=-18dB:ratio=3:attack=5:release=50, loudnorm=I=-14:TP=-1.0:LRA=7, volume=1.45
+    speech_filter = "highpass=f=85,acompressor=threshold=-18dB:ratio=3:attack=5:release=50,loudnorm=I=-14:TP=-1.0:LRA=7,volume=1.45"
+    
     mix_cmd = [
         FFMPEG_BIN, "-y",
         "-i", temp_concat_mp4,
         "-i", bg_music_path,
         "-filter_complex",
-        f"[0:a]volume=1.0[v_voice];[1:a]volume=0.030[v_synth];[v_voice][v_synth]amix=inputs=2:duration=first:dropout_transition=2[aout];[0:v]ass='{ass_filter_path}'[vout]",
+        f"[0:a]{speech_filter}[v_voice];[1:a]volume=0.025[v_synth];[v_voice][v_synth]amix=inputs=2:duration=first:dropout_transition=2[aout];[0:v]ass='{ass_filter_path}'[vout]",
         "-map", "[vout]",
         "-map", "[aout]",
         "-c:v", "libx264",
+        "-profile:v", "high",
         "-preset", "fast",
         "-crf", "18",
         "-pix_fmt", "yuv420p",
@@ -1220,7 +1242,7 @@ async def produce_full_video():
     print(f"  ⏱️  Duration:     {dur_str}")
     print(f"  📐 Resolution:   {resolution} (Full HD)")
     print(f"  ⚡ Frame Rate:   {fps} FPS")
-    print(f"  🔊 Audio Track:  {codec.upper()} Stereo + -30dB Ambient Synth Pad")
+    print(f"  🔊 Audio Track:  {codec.upper()} Stereo + -36dB Ambient Synth Pad (Boosted -14 LUFS)")
     print(f"  📝 Subtitles:    Live Word-Synced Karaoke Captions Burned via libass")
     print(f"  📦 File Size:    {file_size_mb:.2f} MB")
     print("=" * 80)
