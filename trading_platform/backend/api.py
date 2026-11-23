@@ -7,8 +7,14 @@ CORS middleware, and multi-agent coordination routes.
 from contextlib import asynccontextmanager
 from typing import Dict, List, Optional, Any
 import asyncio
+import logging
 import json
 import datetime
+from datetime import timedelta, timezone
+import math
+import random
+
+logger = logging.getLogger("quantumfloor.api")
 import time
 import uuid
 import secrets
@@ -1105,7 +1111,7 @@ def apply_for_ipo(request: Request, ipo_id: str, data: Dict[str, Any] = Body(...
         "total_amount": total_amount,
         "upi_id": upi_id,
         "status": "APPLIED",
-        "applied_at": datetime.now(timezone.utc).isoformat(),
+        "applied_at": datetime.datetime.now(timezone.utc).isoformat(),
     }
     db.record_ipo_application(record)
     return {
@@ -1368,7 +1374,7 @@ async def run_strategy_backtest(req: BacktestRequest):
     req.timeframe = timeframe
 
     try:
-        report = await backtest_engine.run_backtest(req)
+        report = await asyncio.wait_for(backtest_engine.run_backtest(req), timeout=3.5)
         data = report.model_dump()
         c_list = data.get("candles") or []
         t_list = data.get("trades") or []
@@ -1385,7 +1391,7 @@ async def run_strategy_backtest(req: BacktestRequest):
         logger.warning(f"Backtest engine run exception (generating deterministic multi-day dataset): {e}")
 
     # Robust deterministic multi-day fallback generator (350 candles, 14 simulated SMC trades, equity curve)
-    now_dt = datetime.now(timezone.utc)
+    now_dt = datetime.datetime.now(timezone.utc)
     c_list = []
     cur_p = base_price
     start_dt = now_dt - timedelta(minutes=step_minutes * 350)
